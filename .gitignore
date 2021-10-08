@@ -1,0 +1,13 @@
+
+# vim tmp
+*.swp
+
+# fortran
+*.mod
+*.o
+*.x
+
+# python
+.sconsign.dblite
+__pycache__
+

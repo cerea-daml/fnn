@@ -1,0 +1,8 @@
+env = DefaultEnvironment()
+src = ['mod_kinds.F90', 'mod_random.F90', 'mod_activation.F90', 'mod_layers.F90', 'mod_network.F90']
+
+env.Program('test_3.x', ['test_3.F90']+src)
+env.Program('test_4.x', ['test_4.F90']+src)
+env.Program('test_5.x', ['test_5.F90']+src)
+env.Program('test_6.x', ['test_6.F90']+src)
+
