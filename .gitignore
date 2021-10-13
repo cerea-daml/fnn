@@ -11,3 +11,7 @@
 .sconsign.dblite
 __pycache__
 
+# test output
+test/test_*_model*
+test/test_*_out*
+

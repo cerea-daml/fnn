@@ -2,10 +2,16 @@
 import numpy as np
 import tensorflow as tf
 from keras_to_txt import keras_to_txt
-from subprocess import run
+from subprocess import run as srun
 from networks import fromfile
 from scipy.io import FortranFile
 from tqdm import trange
+
+# set double precision in tensorflow
+tf.keras.backend.set_floatx('float64')
+
+# use double format in fortan
+fortran_float = 'f8'
 
 def unit_test(Ne):
 
@@ -25,26 +31,27 @@ def unit_test(Ne):
     model.add(tf.keras.layers.Dense(Ny, bias_initializer='glorot_uniform'))
     model.compile(loss='mse')
 
-    fname_1 = 'test_5_model'
+    fname_1 = 'test_5_model.h5'
     fname_2 = 'test_5_model.txt'
     model.save(fname_1)
     del model
     keras_to_txt(fname_1, fname_2, add_norm_in=True, norm_alpha_in=alpha, norm_beta_in=beta, 
             add_norm_out=True, norm_alpha_out=gamma, norm_beta_out=delta)
 
-    run(['./test_5.x'])
+    srun(['./test_5.x'])
 
     model = fromfile(fname_2)
     Np = model.num_parameters
 
     f = FortranFile('test_5_out.bin', 'r')
-    x = f.read_reals('f4').reshape(Ne, Nx)
-    y1 = f.read_reals('f4').reshape(Ne, Ny)
-    dy = f.read_reals('f4').reshape(Ne, Ny)
-    dp1 = f.read_reals('f4').reshape(Ne, Np)
+    x = f.read_reals(fortran_float).reshape(Ne, Nx)
+    y1 = f.read_reals(fortran_float).reshape(Ne, Ny)
+    dy = f.read_reals(fortran_float).reshape(Ne, Ny)
+    dp1 = f.read_reals(fortran_float).reshape(Ne, Np)
     for i in range(Ne):
         dp1[i] = model.fortran_to_numpy_parameters(dp1[i])
-    dx1 = f.read_reals('f4').reshape(Ne, Nx)
+    dx1 = f.read_reals(fortran_float).reshape(Ne, Nx)
+    f.close()
 
     y2 = np.zeros((Ne, Ny))
     dp2 = np.zeros((Ne, Np))
@@ -56,17 +63,33 @@ def unit_test(Ne):
         dp2[i] = dp
         dx2[i] = dx
 
-    return max(abs(y1-y2).max(), abs(dp1-dp2).max(), abs(dx1-dx2).max())
+    return max(abs(2*(y1-y2)/(y1+y2)).max(), abs(2*(dp1-dp2)/(dp1+dp2)).max(), abs(2*(dx1-dx2)/(dx1+dx2)).max())
+
+KEYSIZE = 10
+VALUESIZE = 25
+PRECISION = 5
 
 def multi_test(Ne, Nt):
+
+    def print_string_line(key, value_a):
+        print(f'{key:>{KEYSIZE}} {value_a:>{VALUESIZE}}') 
+
+    def print_float_line(key, value_a):
+        print(f'{key:>{KEYSIZE}} {value_a:{VALUESIZE}.{PRECISION}f}')
+
     error = np.array([unit_test(Ne) for _ in trange(Nt, desc='running unit tests')])
     print('-'*100)
     print('test #5')
     print('validation of the adjoint of the fortran module')
     print(f'number of tests = {Nt}')
     print(f'number of points per test = {Ne}')
-    print(f'mean error = {error.mean()}')
-    print(f'max error = {error.max()}')
+    print('-'*50)
+    print_string_line('test id', 'max error [rel., log10]')
+    for (i, e) in enumerate(error):
+        print_float_line(i, np.log10(e))
+    print('-'*50)
+    print_float_line('mean', np.log10(error.mean()))
+    print_float_line('std', np.log10(error.std()))
     print('-'*100)
 
 multi_test(100, 10)

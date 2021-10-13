@@ -24,7 +24,7 @@ def keras_to_txt(filename_in, filename_out, add_norm_in=False, norm_alpha_in=1, 
             lines.append(int_format.format(input_shape[1]))
             lines.append(float_format.format(norm_alpha_in))
             lines.append(float_format.format(norm_beta_in))
-        for (layer, subconfig) in zip(model.layers, config['layers']):
+        for (layer, subconfig) in zip(model.layers, config['layers'][1:]):
             if subconfig['class_name'] == 'Dense':
                 lines.append(str_format.format('dense'))
                 output_shape = layer.compute_output_shape(input_shape)
@@ -35,7 +35,6 @@ def keras_to_txt(filename_in, filename_out, add_norm_in=False, norm_alpha_in=1, 
                 parameters = np.concatenate([bias, kernel])
                 lines.append('\t'.join(float_format.format(num) for num in parameters))
                 lines.append(str_format.format(subconfig['config']['activation']))
-                #print(input_shape[1], output_shape[1])
                 input_shape = output_shape
             else:
                 raise Exception(f'unsupported layer: {subconfig["class_name"]}')
@@ -50,6 +49,4 @@ def keras_to_txt(filename_in, filename_out, add_norm_in=False, norm_alpha_in=1, 
     with open(filename_out, 'w') as f:
         for line in lines:
             f.write(line+'\n')
-
-#keras_to_txt('model', 'model.txt')
 

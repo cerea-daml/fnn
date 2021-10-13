@@ -5,6 +5,9 @@ from keras_to_txt import keras_to_txt
 from networks import fromfile
 from tqdm import trange
 
+# set double precision in tensorflow
+tf.keras.backend.set_floatx('float64')
+
 def unit_test(Ne):
 
     Nx = 5
@@ -27,7 +30,7 @@ def unit_test(Ne):
     xn = alpha * x + beta
     y1 = gamma * model.predict(xn) + delta
 
-    fname_1 = 'test_1_model'
+    fname_1 = 'test_1_model.h5'
     fname_2 = 'test_1_model.txt'
 
     model.save(fname_1)
@@ -40,17 +43,33 @@ def unit_test(Ne):
     for i in range(Ne):
         y2[i] = model.apply(x[i])
 
-    return abs(y1-y2).max()
+    return abs(2*(y1-y2)/(y1+y2)).max()
+
+KEYSIZE = 10
+VALUESIZE = 25
+PRECISION = 5
 
 def multi_test(Ne, Nt):
+
+    def print_string_line(key, value_a):
+        print(f'{key:>{KEYSIZE}} {value_a:>{VALUESIZE}}')
+
+    def print_float_line(key, value_a):
+        print(f'{key:>{KEYSIZE}} {value_a:{VALUESIZE}.{PRECISION}f}')
+
     error = np.array([unit_test(Ne) for _ in trange(Nt, desc='running unit tests')])
     print('-'*100)
     print('test #1')
     print('validation of forward and read of the python toolkit')
     print(f'number of tests = {Nt}')
     print(f'number of points per test = {Ne}')
-    print(f'mean error = {error.mean()}')
-    print(f'max error = {error.max()}')
+    print('-'*50)
+    print_string_line('test id', 'max error [rel., log10]')
+    for (i, e) in enumerate(error):
+        print_float_line(i, np.log10(e))
+    print('-'*50)
+    print_float_line('mean', np.log10(error.mean()))
+    print_float_line('std', np.log10(error.std()))
     print('-'*100)
 
 multi_test(100, 10)
