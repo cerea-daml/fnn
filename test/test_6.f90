@@ -1,9 +1,8 @@
 
 program main
 
-    use mod_kinds, only: ik, rk
-    use mod_network, only: SequentialNeuralNetwork, snn_fromfile
-    use mod_random
+    use fnn_common
+    use fnn_network_sequential
 
     implicit none
     integer(ik) :: Nx, Ny, Ne, i, Np
@@ -21,12 +20,12 @@ program main
     allocate(y(Ny, Ne))
     allocate(new_p(Np))
 
-    call rand(x)
-    call rand(new_p)
+    call rand2d(x)
+    call rand1d(new_p)
     call network % set_parameters(new_p)
     
     do i = 1, Ne
-        call network % forward(i, x(:, i), y(:, i))
+        call network % apply_forward(i, x(:, i), y(:, i))
     end do
 
     open(unit=1, file='test_6_out.bin', form='unformatted')

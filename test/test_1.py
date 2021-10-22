@@ -1,7 +1,7 @@
 
 import numpy as np
 import tensorflow as tf
-from keras_to_txt import keras_to_txt
+from keras_to_fnn import keras_file_to_txt
 from networks import fromfile
 from tqdm import trange
 
@@ -35,7 +35,7 @@ def unit_test(Ne):
 
     model.save(fname_1)
     del model
-    keras_to_txt(fname_1, fname_2, add_norm_in=True, norm_alpha_in=alpha, norm_beta_in=beta,
+    keras_file_to_txt(fname_2, fname_1, add_norm_in=True, norm_alpha_in=alpha, norm_beta_in=beta,
             add_norm_out=True, norm_alpha_out=gamma, norm_beta_out=delta)
 
     model = fromfile(fname_2)

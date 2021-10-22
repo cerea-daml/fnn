@@ -127,7 +127,7 @@ def multi_test_adjoint(Ne):
         print(f'{key:{KEYSIZE}.{PRECISION}f} {value_a:{VALUESIZE}.{PRECISION}f}')
 
     print('test #2b')
-    print('validation of the gradient of the python toolkit')
+    print('validation of the adjoint of the python toolkit')
     print(f'number of points per test = {Ne}')
     print('-'*75)
     print_string_line('mean error [rel, log10]', 'std error [rel, log10]')
