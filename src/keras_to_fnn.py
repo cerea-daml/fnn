@@ -44,13 +44,14 @@ class UnsupportedLayerException(Exception):
     """! Exception class for unsupported layers."""
 
 
+##\cond
 def get_model_name(_model, config, **_kwargs):
-    """! Returns the model name for a given model."""
+    """Returns the model name for a given model."""
     return config['name']
 
 
 def get_num_layers(model, _config, **kwargs):
-    """! Returns the total number of layers for a given model."""
+    """Returns the total number of layers for a given model."""
     num_layers = len(model.layers)
     key = 'add_norm_in'
     if key in kwargs and kwargs[key]:
@@ -62,12 +63,12 @@ def get_num_layers(model, _config, **kwargs):
 
 
 def get_input_shape(_model, config, **_kwargs):
-    """! Returns the input shape for a given model."""
+    """Returns the input shape for a given model."""
     return config['layers'][0]['config']['batch_input_shape']
 
 
 def get_layer_name(_layer, subconfig, **_kwargs):
-    """! Returns the layer name for a given layer."""
+    """Returns the layer name for a given layer."""
     return subconfig['class_name']
 
 
@@ -77,7 +78,7 @@ def get_activation_name(_layer, subconfig, **_kwargs):
 
 
 def add_normalisation_layer(write, input_shape, for_input, **kwargs):
-    """! Adds content for a normalisation layer."""
+    """Adds content for a normalisation layer."""
     lbl = 'in' if for_input else 'out'
     key = f'add_norm_{lbl}'
     if key in kwargs and kwargs[key]:
@@ -90,7 +91,7 @@ def add_normalisation_layer(write, input_shape, for_input, **kwargs):
 
 
 def add_layer(write, input_shape, layer, subconfig, **kwargs):
-    """! Adds content for a layer."""
+    """Adds content for a layer."""
     layer_name = get_layer_name(layer, subconfig, **kwargs)
     if layer_name == 'Dense':
         output_shape = layer.compute_output_shape(input_shape)
@@ -104,6 +105,7 @@ def add_layer(write, input_shape, layer, subconfig, **kwargs):
         write(STR_FORMAT(get_activation_name(layer, subconfig, **kwargs)))
         return output_shape
     raise UnsupportedLayerException(layer_name)
+##\endcond
 
 
 def keras_to_txt(filename_out, model, **kwargs):
@@ -162,11 +164,12 @@ def keras_file_to_txt(filename_out, filename_in, **kwargs):
     @param[in] filename_in The keras model file.
     @param[in] kwargs Key-word arguments.
     """
-    import tensorflow as tf  # pylint disable=import-outside-toplevel
+    import tensorflow as tf  # pylint: disable=import-outside-toplevel
     model = tf.keras.models.load_model(filename_in)
     keras_to_txt(filename_out, model, **kwargs)
 
 
+##\cond
 if __name__ == '__main__':
     DESC = 'Transforms a keras model file into a txt model file which can be read by FNN.'
     parser = argparse.ArgumentParser(description=DESC)
@@ -174,3 +177,4 @@ if __name__ == '__main__':
     parser.add_argument('keras_file', help='input keras file')
     args = parser.parse_args()
     keras_file_to_txt(args.txt_file, args.keras_file)
+##\endcond

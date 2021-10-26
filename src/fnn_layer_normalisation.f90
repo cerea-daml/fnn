@@ -76,7 +76,6 @@ contains
         write(unit_num, fmt=*) self % input_size
         write(unit_num, fmt=*) self % alpha
         write(unit_num, fmt=*) self % beta
-        call self % activation % tofile(unit_num)
     end subroutine norm_tofile
 
     !--------------------------------------------------
