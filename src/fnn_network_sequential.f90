@@ -149,6 +149,7 @@ contains
         else
             print *, 'ERROR: unknown network name (', trim(network_name), ')'
         end if
+        close(fileunit)
     end function snn_fromfile
 
     !--------------------------------------------------
