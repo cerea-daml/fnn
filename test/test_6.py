@@ -44,7 +44,6 @@ def unit_test(Ne):
 
     f = FortranFile('test_6_out.bin', 'r')
     p = f.read_reals(fortran_float)
-    p = model.fortran_to_numpy_parameters(p)
     x = f.read_reals(fortran_float).reshape(Ne, Nx)
     y1 = f.read_reals(fortran_float).reshape(Ne, Ny)
     y2 = np.zeros((Ne, Ny))
@@ -76,12 +75,12 @@ def multi_test(Ne, Nt):
     print(f'number of tests = {Nt}')
     print(f'number of points per test = {Ne}')
     print('-'*50)
-    print_string_line('test id', 'max error [rel., log10]')
+    print_string_line('test id', 'max error [rel.]')
     for (i, e) in enumerate(error):
-        print_float_line(i, np.log10(e))
+        print_float_line(i, e)
     print('-'*50)
-    print_float_line('mean', np.log10(error.mean()))
-    print_float_line('std', np.log10(error.std()))
+    print_float_line('mean', error.mean())
+    print_float_line('std', error.std())
     print('-'*100)
 
 multi_test(100, 10)

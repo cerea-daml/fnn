@@ -48,8 +48,6 @@ def unit_test(Ne):
     y1 = f.read_reals(fortran_float).reshape(Ne, Ny)
     dy = f.read_reals(fortran_float).reshape(Ne, Ny)
     dp1 = f.read_reals(fortran_float).reshape(Ne, Np)
-    for i in range(Ne):
-        dp1[i] = model.fortran_to_numpy_parameters(dp1[i])
     dx1 = f.read_reals(fortran_float).reshape(Ne, Nx)
     f.close()
 

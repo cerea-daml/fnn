@@ -8,10 +8,9 @@ def fromofile(f):
     if layer_name == 'dense':
         Nin = int(f.readline().strip())
         Nout = int(f.readline().strip())
-        p_f = np.loadtxt(f, max_rows=1)
-        p_py = DenseLayer.static_fortran_to_numpy_parameters(Nin, Nout, p_f)
+        p = np.loadtxt(f, max_rows=1)
         activation = f.readline().strip()
-        layer = DenseLayer(Nin, Nout, activation, initialisation='value', initialisation_kwargs=dict(value=p_py))
+        layer = DenseLayer(Nin, Nout, activation, initialisation='value', initialisation_kwargs=dict(value=p))
         return layer
     elif layer_name == 'normalisation':
         Ninout = int(f.readline().strip())
@@ -60,9 +59,6 @@ class NormalisationLayer:
     def apply_adjoint_p(self, dy):
         return np.zeros(0)
 
-    def fortran_to_numpy_parameters(self, p_f):
-        return p_f
-
 class DenseLayer:
 
     def __init__(self, Nin, Nout, activation='linear', activation_kwargs=None, initialisation='randn', initialisation_kwargs=None):
@@ -71,23 +67,13 @@ class DenseLayer:
         self.num_parameters = self.Nout * (self.Nin+1)
         self.parameters = np.empty(self.num_parameters)
         self.b = self.parameters[:self.Nout]
-        self.w = self.parameters[self.Nout:].reshape((self.Nout, self.Nin))
+        self.w = self.parameters[self.Nout:].reshape((self.Nout, self.Nin), order='F')
 
         initialisation_kwargs = initialisation_kwargs or {}
         self.initialise(initialisation, **initialisation_kwargs)
 
         activation_kwargs = activation_kwargs or {}
         self.activation = construct_activation(activation, **activation_kwargs)
-
-    @staticmethod
-    def static_fortran_to_numpy_parameters(Nin, Nout, p_f):
-        p_py = np.zeros(Nout*(Nin+1))
-        p_py[:Nout] = p_f[:Nout]
-        p_py[Nout:] = p_f[Nout:].reshape((Nout, Nin), order='F').flatten()
-        return p_py
-
-    def fortran_to_numpy_parameters(self, p_f):
-        return DenseLayer.static_fortran_to_numpy_parameters(self.Nin, self.Nout, p_f)
 
     def initialise(self, initialisation, **kwargs):
         if initialisation == 'zero':
@@ -114,7 +100,7 @@ class DenseLayer:
 
     def apply_tangent_linear_p(self, dp):
         db = dp[:self.Nout]
-        dw = dp[self.Nout:].reshape((self.Nout, self.Nin))
+        dw = dp[self.Nout:].reshape((self.Nout, self.Nin), order='F')
         tlw = self.activation.apply_tangent_linear(dw@self.x)
         tlb = self.activation.apply_tangent_linear(db)
         return tlw + tlb
@@ -122,7 +108,7 @@ class DenseLayer:
     def apply_adjoint_p(self, dy):
         db = self.activation.apply_adjoint(dy)
         dw = db.reshape((self.Nout, 1))@self.x.reshape((1, self.Nin))
-        return np.concatenate([db, dw.flatten()])
+        return np.concatenate([db, dw.flatten(order='F')])
 
     def gradient_test_x(self, Ntest, eps):
         err = np.zeros(Ntest)

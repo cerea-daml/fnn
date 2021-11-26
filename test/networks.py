@@ -25,13 +25,6 @@ class SequentialNetwork:
         for (layer, pi) in zip(self.layers, p_list):
             layer.parameters[:] = pi
 
-    def fortran_to_numpy_parameters(self, p_f):
-        p_f_list = self.split_parameters(p_f)
-        p_py_list = []
-        for (layer, p_fi) in zip(self.layers, p_f_list):
-            p_py_list.append(layer.fortran_to_numpy_parameters(p_fi))
-        return self.join_parameters(p_py_list)
-
     def split_parameters(self, p):
         p_list = []
         index = 0
