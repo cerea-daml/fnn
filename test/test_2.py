@@ -1,6 +1,6 @@
 
 import numpy as np
-from networks import SequentialNetwork
+from pyfnn import SequentialNetwork
 
 def unit_test_gradient(list_eps, Ne):
 

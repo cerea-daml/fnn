@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from keras_to_fnn import keras_file_to_txt
 from subprocess import run as srun
-from networks import fromfile
+from pyfnn import fromfile
 from scipy.io import FortranFile
 from tqdm import trange
 

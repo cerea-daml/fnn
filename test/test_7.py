@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from keras_to_fnn import keras_file_to_txt
 from subprocess import run as srun
-from networks import fromfile
+from pyfnn import fromfile
 from scipy.io import FortranFile
 from tqdm import trange
 
@@ -68,7 +68,7 @@ def multi_test(Ne, Nt):
 
     error = np.array([unit_test(Ne) for _ in trange(Nt, desc='running unit tests')])
     print('-'*100)
-    print('test #6')
+    print('test #7')
     print('validation of parameter replacement in the fortran module')
     print(f'number of tests = {Nt}')
     print(f'number of points per test = {Ne}')

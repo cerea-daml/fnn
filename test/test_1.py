@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 from keras_to_fnn import keras_file_to_txt
-from networks import fromfile
+from pyfnn import fromfile
 from tqdm import trange
 
 # set double precision in tensorflow
