@@ -16,14 +16,14 @@ module fnn_layer_normalisation
     !--------------------------------------------------
     !> @brief Implements a normalisation layer.
     !> @details This layer has no (trainable) parameters.
-    !> It can be used to (globally) rescale the input and
-    !> output of a network.
+    !> It can be used to rescale the input and output
+    !> of a network variable per variable.
     type, extends(Layer) :: NormalisationLayer
         private
         !> The multiplicative factor.
-        real(rk) :: alpha
+        real(rk), allocatable :: alpha(:)
         !> The additive term.
-        real(rk) :: beta
+        real(rk), allocatable :: beta(:)
     contains
         !> @brief Saves the layer.
         !> Implemented by \ref norm_tofile.
@@ -50,6 +50,8 @@ contains
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: unit_num
         read(unit_num, *) self % input_size
+        allocate(self % alpha(self % input_size))
+        allocate(self % beta(self % input_size))
         read(unit_num, *) self % alpha
         read(unit_num, *) self % beta
         self % output_size = self % input_size

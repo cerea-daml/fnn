@@ -86,8 +86,8 @@ def add_normalisation_layer(write, input_shape, for_input, **kwargs):
         beta = kwargs.get(f'norm_beta_{lbl}', 0)
         write(STR_FORMAT('normalisation'))
         write(INT_FORMAT(input_shape[1]))
-        write(FLOAT_FORMAT(alpha))
-        write(FLOAT_FORMAT(beta))
+        write('\t'.join(FLOAT_FORMAT(a) for a in alpha))
+        write('\t'.join(FLOAT_FORMAT(b) for b in beta))
 
 
 def add_layer(write, input_shape, layer, subconfig, **kwargs):
@@ -114,16 +114,16 @@ def keras_to_txt(filename_out, model, **kwargs):
     @details \b Accepted \b kwargs
     - [in] `add_norm_in` : bool
         - Whether to add a normalisation layer for the input.
-    - [in] `norm_alpha_in` : float
-        - Value of `alpha` for the input normalisation layer, if any.
-    - [in] `norm_beta_in` : float
-        - Value of `beta` for the input normalisation layer, if any.
+    - [in] `norm_alpha_in` : np.ndarray
+        - Value of `alpha` (1d array) for the input normalisation layer, if any.
+    - [in] `norm_beta_in` : np.ndarray
+        - Value of `beta` (1d array) for the input normalisation layer, if any.
     - [in] `add_norm_out` : bool
         - Whether to add a normalisation layer for the output.
-    - [in] `norm_alpha_out` : float
-        - Value of `alpha` for the output normalisation layer, if any.
-    - [in] `norm_beta_out` : float
-        - Value of `beta` for the output normalisation layer, if any.
+    - [in] `norm_alpha_out` : np.ndarray
+        - Value of `alpha` (1d array) for the output normalisation layer, if any.
+    - [in] `norm_beta_out` : np.ndarray
+        - Value of `beta` (1d array) for the output normalisation layer, if any.
 
     @param[in] filename_out The name of the txt file to write.
     @param[in] model The keras model.

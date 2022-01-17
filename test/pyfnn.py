@@ -91,8 +91,8 @@ def layer_fromfile(f):
         return layer
     elif layer_name == 'normalisation':
         Ninout = int(f.readline().strip())
-        alpha = float(f.readline().strip())
-        beta = float(f.readline().strip())
+        alpha = np.loadtxt(f, max_rows=1)
+        beta = np.loadtxt(f, max_rows=1)
         layer = NormalisationLayer(Ninout, alpha, beta)
         return layer
     else:

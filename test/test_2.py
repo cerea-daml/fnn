@@ -26,10 +26,10 @@ def unit_test_gradient(list_eps, Ne):
     Ni = 6
     Ny = 4
 
-    alpha = np.random.randn(1)[0]
-    beta = np.random.randn(1)[0]
-    gamma = np.random.randn(1)[0]
-    delta = np.random.randn(1)[0]
+    alpha = np.random.randn(Nx)
+    beta = np.random.randn(Nx)
+    gamma = np.random.randn(Ny)
+    delta = np.random.randn(Ny)
 
     network = SequentialNetwork()
     network.add_layer('normalisation', Nx, alpha, beta)
@@ -94,10 +94,10 @@ def unit_test_adjoint(Ne):
     Ni = 6
     Ny = 4
 
-    alpha = np.random.randn(1)[0]
-    beta = np.random.randn(1)[0]
-    gamma = np.random.randn(1)[0]
-    delta = np.random.randn(1)[0]
+    alpha = np.random.randn(Nx)
+    beta = np.random.randn(Nx)
+    gamma = np.random.randn(Ny)
+    delta = np.random.randn(Ny)
 
     network = SequentialNetwork()
     network.add_layer('normalisation', Nx, alpha, beta)
