@@ -5,6 +5,7 @@ module fnn_layer_normalisation
     use fnn_common
     use fnn_activation_linear
     use fnn_activation_tanh
+    use fnn_activation_relu
     use fnn_layer
 
     implicit none

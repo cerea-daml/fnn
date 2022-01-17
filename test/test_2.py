@@ -33,7 +33,7 @@ def unit_test_gradient(list_eps, Ne):
 
     network = SequentialNetwork()
     network.add_layer('normalisation', Nx, alpha, beta)
-    network.add_layer('dense', Nx, Ni, activation='tanh', initialisation='randn')
+    network.add_layer('dense', Nx, Ni, activation='relu', initialisation='randn')
     network.add_layer('dense', Ni, Ni, activation='tanh', initialisation='randn')
     network.add_layer('dense', Ni, Ny, activation='linear', initialisation='randn')
     network.add_layer('normalisation', Ny, gamma, delta)
@@ -101,7 +101,7 @@ def unit_test_adjoint(Ne):
 
     network = SequentialNetwork()
     network.add_layer('normalisation', Nx, alpha, beta)
-    network.add_layer('dense', Nx, Ni, activation='tanh', initialisation='randn')
+    network.add_layer('dense', Nx, Ni, activation='relu', initialisation='randn')
     network.add_layer('dense', Ni, Ni, activation='tanh', initialisation='randn')
     network.add_layer('dense', Ni, Ny, activation='linear', initialisation='randn')
     network.add_layer('normalisation', Ny, gamma, delta)

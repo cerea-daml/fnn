@@ -4,6 +4,7 @@ src = [
     'fnn_activation_linear.f90', 
     'fnn_activation_nonlinear.f90', 
     'fnn_activation_tanh.f90', 
+    'fnn_activation_relu.f90', 
     'fnn_layer.f90', 
     'fnn_layer_dense.f90',
     'fnn_layer_normalisation.f90',

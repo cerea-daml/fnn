@@ -21,7 +21,7 @@ def unit_test(Ne):
 
     model = tf.keras.Sequential()
     model.add(tf.keras.Input(shape=(Nx,)))
-    model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='tanh'))
+    model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='relu'))
     model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='tanh'))
     model.add(tf.keras.layers.Dense(Ny, bias_initializer='glorot_uniform'))
     model.compile(loss='mse')

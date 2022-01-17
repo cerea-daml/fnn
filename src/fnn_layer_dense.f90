@@ -5,6 +5,7 @@ module fnn_layer_dense
     use fnn_common
     use fnn_activation_linear
     use fnn_activation_tanh
+    use fnn_activation_relu
     use fnn_layer
 
     implicit none
@@ -73,6 +74,9 @@ contains
             case('tanh')
                 allocate(TanhActivation::self % activation)
                 self % activation = construct_tanh_activation(output_size, batch_size)
+            case('relu')
+                allocate(ReluActivation::self % activation)
+                self % activation = construct_relu_activation(output_size, batch_size)
             case default
                 allocate(LinearActivation::self % activation)
                 self % activation = construct_linear_activation(output_size, batch_size)
@@ -112,6 +116,9 @@ contains
             case('tanh')
                 allocate(TanhActivation::self % activation)
                 self % activation = construct_tanh_activation(self % output_size, self % batch_size)
+            case('relu')
+                allocate(ReluActivation::self % activation)
+                self % activation = construct_relu_activation(self % output_size, self % batch_size)
             case default
                 allocate(LinearActivation::self % activation)
                 self % activation = construct_linear_activation(self % output_size, self % batch_size)
