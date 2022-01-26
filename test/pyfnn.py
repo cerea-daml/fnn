@@ -114,6 +114,7 @@ class NormalisationLayer:
         self.beta = beta
         self.num_parameters = 0
         self.parameters = np.zeros(0)
+        self.keras_parameters = np.zeros(0)
 
     def initialise(self, *args, **kwargs):
         pass
@@ -151,6 +152,12 @@ class DenseLayer:
 
         activation_kwargs = activation_kwargs or {}
         self.activation = construct_activation(activation, **activation_kwargs)
+
+    @property
+    def keras_parameters(self):
+        b_parameters = self.parameters[:self.Nout]
+        w_parameters = self.parameters[self.Nout:]
+        return np.concatenate([w_parameters, b_parameters])
 
     def initialise(self, initialisation, **kwargs):
         if initialisation == 'zero':
@@ -212,6 +219,24 @@ class SequentialNetwork:
         p_list = self.split_parameters(p)
         for (layer, pi) in zip(self.layers, p_list):
             layer.parameters[:] = pi
+
+    @property
+    def keras_parameters(self):
+        return self.join_parameters([layer.keras_parameters for layer in self.layers])
+
+    def set_weights_keras(self, keras_model):
+        new_w = self.keras_parameters
+        new_w_list = []
+        index = 0
+        for w in keras_model.weights:
+            if w.trainable:
+                shape = w.numpy().shape
+                size = w.numpy().size
+                new_w_list.append(new_w[index:index+size].reshape(shape))
+                index += size
+            else:
+                new_w_list.append(w.numpy())
+        keras_model.set_weights(new_w_list)
 
     def split_parameters(self, p):
         p_list = []
