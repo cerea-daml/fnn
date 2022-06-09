@@ -59,12 +59,30 @@ def get_num_layers(model, _config, **kwargs):
     key = 'add_norm_out'
     if key in kwargs and kwargs[key]:
         num_layers += 1
+    for rate in kwargs['dropout_rates']:
+        if rate is not None:
+            num_layers += 1
     return num_layers
 
 
 def get_input_shape(_model, config, **_kwargs):
     """Returns the input shape for a given model."""
     return config['layers'][0]['config']['batch_input_shape']
+
+
+def get_dropout_rates(model, _config, **kwargs):
+    """Returns the dropout rates for each layer."""
+    num_layers = len(model.layers)
+    rates = kwargs.get('dropout_rates', None)
+    if isinstance(rates, int):
+        return [rates for _ in range(num_layers)]
+    if isinstance(rates, list):
+        if len(rates) > num_layers:
+            raise ValueError('too many dropout rates are provided')
+        while len(rates) < num_layers:
+            rates.append(None)
+        return rates
+    return [None for _ in range(num_layers)]
 
 
 def get_layer_name(_layer, subconfig, **_kwargs):
@@ -90,7 +108,7 @@ def add_normalisation_layer(write, input_shape, for_input, **kwargs):
         write('\t'.join(FLOAT_FORMAT(b) for b in beta))
 
 
-def add_layer(write, input_shape, layer, subconfig, **kwargs):
+def add_layer(write, input_shape, layer, subconfig, dropout_rate, **kwargs):
     """Adds content for a layer."""
     layer_name = get_layer_name(layer, subconfig, **kwargs)
     if layer_name == 'Dense':
@@ -103,6 +121,10 @@ def add_layer(write, input_shape, layer, subconfig, **kwargs):
         write(INT_FORMAT(output_shape[1]))
         write('\t'.join(FLOAT_FORMAT(num) for num in parameters))
         write(STR_FORMAT(get_activation_name(layer, subconfig, **kwargs)))
+        if dropout_rate is not None:
+            write(STR_FORMAT('dropout'))
+            write(INT_FORMAT(output_shape[1]))
+            write(FLOAT_FORMAT(dropout_rate))
         return output_shape
     raise UnsupportedLayerException(layer_name)
 ##\endcond
@@ -124,6 +146,8 @@ def keras_to_txt(filename_out, model, **kwargs):
         - Value of `alpha` (1d array) for the output normalisation layer, if any.
     - [in] `norm_beta_out` : np.ndarray
         - Value of `beta` (1d array) for the output normalisation layer, if any.
+    - [in] `dropout_rates` : None or float or list of float
+        - Whether to add dropout after each internal layer, with the given rate.
 
     @param[in] filename_out The name of the txt file to write.
     @param[in] model The keras model.
@@ -137,14 +161,17 @@ def keras_to_txt(filename_out, model, **kwargs):
         config = model.get_config()
         model_name = get_model_name(model, config, **kwargs)
         if 'sequential' in model_name:
-            num_layers = get_num_layers(model, config, **kwargs)
             input_shape = get_input_shape(model, config, **kwargs)
+            dropout_rates = get_dropout_rates(model, config, **kwargs)
+            kwargs['dropout_rates'] = dropout_rates
+            num_layers = get_num_layers(model, config, **kwargs)
             write(STR_FORMAT('sequential'))
             write(INT_FORMAT(num_layers))
             add_normalisation_layer(write, input_shape, True, **kwargs)
-            for (layer, subconfig) in zip(model.layers, config['layers'][1:]):
+            for (layer, dropout_rate, subconfig) in zip(model.layers, 
+                    dropout_rates, config['layers'][1:]):
                 input_shape = add_layer(write, input_shape, layer, subconfig,
-                                        **kwargs)
+                                        dropout_rate, **kwargs)
             add_normalisation_layer(write, input_shape, False, **kwargs)
         else:
             raise UnsupportedModelException(model_name)

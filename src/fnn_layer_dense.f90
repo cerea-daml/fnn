@@ -172,11 +172,13 @@ contains
     !> @todo Find a way to store (internally) a view to the
     !> kernel and the bias.
     !> @param[inout] self The layer.
+    !> @param[in] train Whether the model is used in training mode.
     !> @param[in] member The index inside the batch.
     !> @param[in] x The input of the layer.
     !> @param[out] y The output of the layer.
-    subroutine dense_apply_forward(self, member, x, y)
+    subroutine dense_apply_forward(self, train, member, x, y)
         class(DenseLayer), intent(inout) :: self
+        logical, intent(in) :: train
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)

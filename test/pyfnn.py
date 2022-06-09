@@ -95,6 +95,11 @@ def layer_fromfile(f):
         beta = np.loadtxt(f, max_rows=1)
         layer = NormalisationLayer(Ninout, alpha, beta)
         return layer
+    elif layer_name == 'dropout':
+        Ninout = int(f.readline().strip())
+        rate = np.loadtxt(f, max_rows=1)
+        layer = DropoutLayer(Ninout, rate)
+        return layer
     else:
         print('unknown layer type:', layer_name)
 
@@ -130,6 +135,37 @@ class NormalisationLayer:
 
     def apply_adjoint_x(self, dy):
         return self.alpha * dy
+
+    def apply_tangent_linear_p(self, dp):
+        return np.zeros(self.Nout)
+
+    def apply_adjoint_p(self, dy):
+        return np.zeros(0)
+
+class DropoutLayer:
+
+    def __init__(self, Ninout, rate):
+        self.Nin = Ninout
+        self.Nout = Ninout
+        self.rate = rate
+        self.num_parameters = 0
+        self.parameters = np.zeros(0)
+        self.keras_parameters = np.zeros(0)
+
+    def initialise(self, *args, **kwargs):
+        pass
+
+    def apply(self, x):
+        return x
+
+    def apply_linearise(self, x):
+        return self.apply(x)
+
+    def apply_tangent_linear_x(self, dx):
+        return dx
+
+    def apply_adjoint_x(self, dy):
+        return dy
 
     def apply_tangent_linear_p(self, dp):
         return np.zeros(self.Nout)

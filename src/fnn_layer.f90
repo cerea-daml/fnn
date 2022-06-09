@@ -156,11 +156,13 @@ contains
     !> for certain subclasses (e.g. \ref fnn_layer_dense::denselayer)
     !> the linearisation is stored inside the layer.
     !> @param[inout] self The layer.
+    !> @param[in] train Whether the model is used in training mode.
     !> @param[in] member The index inside the batch.
     !> @param[in] x The input of the layer.
     !> @param[out] y The output of the layer.
-    subroutine layer_apply_forward(self, member, x, y)
+    subroutine layer_apply_forward(self, train, member, x, y)
         class(Layer), intent(inout) :: self
+        logical, intent(in) :: train
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)

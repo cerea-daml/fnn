@@ -6,6 +6,7 @@ module fnn_network_sequential
     use fnn_layer
     use fnn_layer_dense
     use fnn_layer_normalisation
+    use fnn_layer_dropout
 
     implicit none
 
@@ -137,6 +138,11 @@ contains
                         self % list_layers(i) % this_layer = norm_layer_fromfile(batch_size, fileunit)
                         self % ip_start(i) = ip + 1
                         self % ip_end(i) = ip
+                    case('dropout')
+                        allocate(DropoutLayer::self % list_layers(i) % this_layer)
+                        self % list_layers(i) % this_layer = dropout_layer_fromfile(batch_size, fileunit)
+                        self % ip_start(i) = ip + 1
+                        self % ip_end(i) = ip
                     case default ! default to dense layer
                         allocate(DenseLayer::self % list_layers(i) % this_layer)
                         self % list_layers(i) % this_layer = dense_layer_fromfile(batch_size, fileunit)
@@ -261,26 +267,32 @@ contains
     !> stored inside the network, the intent of `self` is
     !> declared `inout`.
     !> @param[inout] self The network.
+    !> @param[in] train Whether the model is used in training mode.
     !> @param[in] member The index inside the batch.
     !> @param[in] x The input of the network.
     !> @param[out] y The output of the network.
-    subroutine snn_apply_forward(self, member, x, y)
+    subroutine snn_apply_forward(self, train, member, x, y)
         class(SequentialNeuralNetwork), intent(inout) :: self
+        logical, intent(in) :: train
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
         integer(ik) :: i
         if ( self % num_layers == 1 ) then
-            call self % list_layers(1) % this_layer % apply_forward(member, x, y)
+            call self % list_layers(1) % this_layer % apply_forward(&
+                train, member, x, y)
         else
-            call self % list_layers(1) % this_layer % apply_forward(member, x,&
+            call self % list_layers(1) % this_layer % apply_forward(&
+                train, member, x,&
                 self % list_layers(2) % this_layer % forward_input(:, member))
             do i = 2, self % num_layers - 1
-                call self % list_layers(i) % this_layer % apply_forward(member,&
+                call self % list_layers(i) % this_layer % apply_forward(&
+                    train, member,&
                     self % list_layers(i) % this_layer % forward_input(:, member),&
                     self % list_layers(i+1) % this_layer % forward_input(:, member))
             end do
-            call self % list_layers(self % num_layers) % this_layer % apply_forward(member,&
+            call self % list_layers(self % num_layers) % this_layer % apply_forward(&
+                train, member,&
                 self % list_layers(self % num_layers) % this_layer % forward_input(:, member), y)
         end if
     end subroutine snn_apply_forward

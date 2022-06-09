@@ -27,7 +27,7 @@ program main
     call rand2d(dx)
     
     do i = 1, Ne
-        call network % apply_forward(i, x(:, i), y(:, i))
+        call network % apply_forward(.true., i, x(:, i), y(:, i))
     end do
 
     do i = 1, Ne

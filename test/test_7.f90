@@ -26,7 +26,7 @@ program main
     call network % tofile('test_7_model_out.txt')
     
     do i = 1, Ne
-        call network % apply_forward(i, x(:, i), y(:, i))
+        call network % apply_forward(.true., i, x(:, i), y(:, i))
     end do
 
     open(unit=1, file='test_7_out.bin', form='unformatted')

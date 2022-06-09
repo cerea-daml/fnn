@@ -21,7 +21,7 @@ program main
     call rand2d(x)
     
     do i = 1, Ne
-        call network % apply_forward(i, x(:, i), y(:, i))
+        call network % apply_forward(.true., i, x(:, i), y(:, i))
     end do
 
     open(unit=1, file='test_3_out.bin', form='unformatted')
