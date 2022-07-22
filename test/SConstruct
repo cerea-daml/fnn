@@ -18,4 +18,5 @@ env.Program('test_5.x', ['test_5.f90']+src)
 env.Program('test_6.x', ['test_6.f90']+src)
 env.Program('test_7.x', ['test_7.f90']+src)
 env.Program('test_9.x', ['test_9.f90']+src)
+env.Program('test_10.x', ['test_10.f90']+src)
 
