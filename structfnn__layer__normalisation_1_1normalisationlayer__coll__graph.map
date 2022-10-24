@@ -1,0 +1,4 @@
+<map id="fnn_layer_normalisation::normalisationlayer" name="fnn_layer_normalisation::normalisationlayer">
+<area shape="rect" id="node1" title="Implements a normalisation layer." alt="" coords="5,79,164,119"/>
+<area shape="rect" id="node2" href="$structfnn__layer_1_1layer.html" title="Base class for all layers. Do not instanciate." alt="" coords="31,5,138,31"/>
+</map>

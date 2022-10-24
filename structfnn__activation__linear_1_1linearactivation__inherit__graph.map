@@ -1,0 +1,6 @@
+<map id="fnn_activation_linear::linearactivation" name="fnn_activation_linear::linearactivation">
+<area shape="rect" id="node1" title="Base class for all activation functions. Implements a linear activation function." alt="" coords="79,5,220,45"/>
+<area shape="rect" id="node2" href="$structfnn__activation__nonlinear_1_1nonlinearactivation.html" title="Base class for nonlinear activation functions. Do not instanciate." alt="" coords="68,93,231,133"/>
+<area shape="rect" id="node3" href="$structfnn__activation__relu_1_1reluactivation.html" title="Implements a relu activation function." alt="" coords="5,181,136,221"/>
+<area shape="rect" id="node4" href="$structfnn__activation__tanh_1_1tanhactivation.html" title="Implements a tanh activation function." alt="" coords="161,181,295,221"/>
+</map>

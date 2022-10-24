@@ -1,0 +1,5 @@
+<map id="fnn_activation_tanh::tanhactivation" name="fnn_activation_tanh::tanhactivation">
+<area shape="rect" id="node1" title="Implements a tanh activation function." alt="" coords="19,181,154,221"/>
+<area shape="rect" id="node2" href="$structfnn__activation__nonlinear_1_1nonlinearactivation.html" title="Base class for nonlinear activation functions. Do not instanciate." alt="" coords="5,93,168,133"/>
+<area shape="rect" id="node3" href="$structfnn__activation__linear_1_1linearactivation.html" title="Base class for all activation functions. Implements a linear activation function." alt="" coords="16,5,157,45"/>
+</map>

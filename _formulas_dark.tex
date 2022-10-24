@@ -1,0 +1,190 @@
+\documentclass{article}
+\usepackage{ifthen}
+\usepackage{epsfig}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\color{white}
+\pagecolor{black}
+\usepackage{newunicodechar}
+  \newunicodechar{⁻}{${}^{-}$}% Superscript minus
+  \newunicodechar{²}{${}^{2}$}% Superscript two
+  \newunicodechar{³}{${}^{3}$}% Superscript three
+
+\pagestyle{empty}
+\begin{document}
+\[ \mathbf{y} = \mathcal{A}(\mathbf{z}) = \mathbf{z},\]
+\pagebreak
+
+\[ \mathbf{A}(\mathbf{z}) = \mathbf{I},\]
+\pagebreak
+
+\[ d\mathbf{y} = \mathbf{A}(\mathbf{z}) d\mathbf{z} = d\mathbf{z}.\]
+\pagebreak
+
+\[ d\mathbf{z} = \mathbf{A}(\mathbf{z})^\top d\mathbf{y} = d\mathbf{y}.\]
+\pagebreak
+
+\[ d\mathbf{y} = \mathbf{A}(\mathbf{z}) d\mathbf{z}.\]
+\pagebreak
+
+\[ d\mathbf{z} = \mathbf{A}(\mathbf{z})^\top d\mathbf{y}.\]
+\pagebreak
+
+\[ \mathbf{y} = \mathcal{A}(\mathbf{z}) = \mathrm{relu}(\mathbf{z}),\]
+\pagebreak
+
+\[ \mathbf{A}(\mathbf{z}) = \mathrm{diag}(1-\mathrm{relu}(\mathbf{z})^2).\]
+\pagebreak
+
+\[ \mathbf{y} = \mathcal{A}(\mathbf{z}) = \mathrm{tanh}(\mathbf{z}),\]
+\pagebreak
+
+\[ \mathbf{A}(\mathbf{z}) = \mathrm{diag}(1-\mathrm{tanh}(\mathbf{z})^2).\]
+\pagebreak
+
+\[ \mathbf{y} = \mathcal{F}(\mathbf{p}, \mathbf{x}),\]
+\pagebreak
+
+$\mathbf{p}$
+\pagebreak
+
+\[ d\mathbf{y} = \mathbf{F}^\mathrm{p}d\mathbf{p} + 
+ \mathbf{F}^\mathrm{x}d\mathbf{x},\]
+\pagebreak
+
+$\mathbf{F}^\mathrm{p}$
+\pagebreak
+
+$\mathcal{F}$
+\pagebreak
+
+$\mathbf{F}^\mathrm{x}$
+\pagebreak
+
+$\mathbf{x}$
+\pagebreak
+
+\[ d\mathbf{p} = [\mathbf{F}^\mathrm{p}]^\top d\mathbf{y},\]
+\pagebreak
+
+\[ d\mathbf{x} = [\mathbf{F}^\mathrm{x}]^\top d\mathbf{y},\]
+\pagebreak
+
+$\mathbf{W}$
+\pagebreak
+
+$\mathbf{b}$
+\pagebreak
+
+\[ \mathbf{b} = \mathbf{p}[:N_{\mathrm{out}}],\]
+\pagebreak
+
+\[ \mathbf{W} = \mathbf{p}[N_{\mathrm{out}}:].\mathrm{reshape}((N_{\mathrm{out}}, 
+ N_{\mathrm{in}}), \mathrm{order="F"}),\]
+\pagebreak
+
+$N_{\mathrm{out}}$
+\pagebreak
+
+$N_{\mathrm{in}}$
+\pagebreak
+
+$d\mathbf{b}$
+\pagebreak
+
+$d\mathbf{W}$
+\pagebreak
+
+$d\mathbf{p}$
+\pagebreak
+
+\[ \mathbf{y} = \mathcal{F}(\mathbf{p}, \mathbf{x})
+ = \mathcal{A}(\mathbf{Wx+b}),\]
+\pagebreak
+
+$\mathcal{A}$
+\pagebreak
+
+$\mathbf{Wx+b}$
+\pagebreak
+
+\[d\mathbf{y} = \mathbf{A}(\mathbf{Wx+b})[\mathbf{W}d
+ \mathbf{x}+d\mathbf{Wx}+d\mathbf{b}],\]
+\pagebreak
+
+\[d\mathbf{y} = \mathbf{W}d\mathbf{x},\]
+\pagebreak
+
+\[d\mathbf{y} = d\mathbf{y} + d\mathbf{Wx},\]
+\pagebreak
+
+\[d\mathbf{y} = d\mathbf{y} + d\mathbf{b},\]
+\pagebreak
+
+\[d\mathbf{y} = \mathbf{A}(\mathbf{Wx+b})d\mathbf{y}.\]
+\pagebreak
+
+\[d\mathbf{y} = \mathbf{A}(\mathbf{Wx+b})^{\top}d\mathbf{y},\]
+\pagebreak
+
+\[d\mathbf{b} = d\mathbf{y},\]
+\pagebreak
+
+\[d\mathbf{W} = d\mathbf{yx}^{\top},\]
+\pagebreak
+
+\[d\mathbf{x} = \mathbf{W}^{\top}d\mathbf{y}.\]
+\pagebreak
+
+$d\mathbf{y}$
+\pagebreak
+
+\[d\mathbf{b} = \mathbf{A}(\mathbf{Wx+b})^{\top}d\mathbf{y}.\]
+\pagebreak
+
+\[\mathbf{y} = \mathbf{z}*\mathbf{x},\]
+\pagebreak
+
+$*$
+\pagebreak
+
+$z_{i}=0$
+\pagebreak
+
+$p$
+\pagebreak
+
+$z_{i}=1/(1-p)$
+\pagebreak
+
+$1-p$
+\pagebreak
+
+$z_{i}=1$
+\pagebreak
+
+$\mathbf{z}$
+\pagebreak
+
+\[d\mathbf{y} = \mathbf{z}*d\mathbf{x}.\]
+\pagebreak
+
+\[d\mathbf{x} = \mathbf{z}*d\mathbf{y}.\]
+\pagebreak
+
+\[\mathbf{y} = \alpha \mathbf{x} + \beta,\]
+\pagebreak
+
+$\alpha$
+\pagebreak
+
+$\beta$
+\pagebreak
+
+\[d\mathbf{y} = \alpha d\mathbf{x}.\]
+\pagebreak
+
+\[d\mathbf{x} = \alpha d\mathbf{y}.\]
+\pagebreak
+
+\end{document}

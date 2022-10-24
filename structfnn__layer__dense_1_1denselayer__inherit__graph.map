@@ -1,0 +1,4 @@
+<map id="fnn_layer_dense::denselayer" name="fnn_layer_dense::denselayer">
+<area shape="rect" id="node1" title="Implements a dense (fully&#45;connected) layer." alt="" coords="5,79,189,104"/>
+<area shape="rect" id="node2" href="$structfnn__layer_1_1layer.html" title="Base class for all layers. Do not instanciate." alt="" coords="44,5,151,31"/>
+</map>
