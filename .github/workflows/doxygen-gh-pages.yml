@@ -9,6 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: mattnotmitt/doxygen-action@v1.9.4
+      - uses: actions/checkout@v3
+      - uses: langroodi/doxygenize@v1.6.1
         with:
-          working-directory: 'doc'
+          htmloutput: './html/'

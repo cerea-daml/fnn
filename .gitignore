@@ -16,4 +16,4 @@ test/test_*_model*
 test/test_*_out*
 
 # doc
-doc/html
+html
