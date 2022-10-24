@@ -17,11 +17,11 @@ Prediction System (OOPS) developed at the European Centre for Medium-range
 Weather Forecast (ECMWF).
 
 This repository is organised as follows.
-- The source code is located in the `src` folder. The `.f90` files together
+- The source code is located in the `src/` folder. The `.f90` files together
 implement the `fnn` module. The python script is used to create text files
 (see Section *Creating a network*).
-- The test suite is located in the `test` folder.
-- The module documentation is located in the `doc` folder.
+- The test suite is located in the `test/` folder.
+- The module documentation can be found [here](https://cerea-daml.github.io/fnn/index.html).
 
 ## Floating-point precision
 
@@ -45,7 +45,7 @@ can be executed.
 
 ## Examples
 
-In the `test/` folder, several examples are provided. Let us take the example
+In the test suite, several examples can be found. Let us take the example
 of test 3. The workflow of this test is handled by the python script `test_3.py`.
 1. A sequential neural network is created using Keras.
 2. The network is converted to a text file using the `keras_to_fnn.py` script.
