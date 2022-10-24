@@ -3,9 +3,9 @@
 
 The goal of the FNN library is to provide the `fnn` module, which can be used
 in Fortran code to implement simple, sequential neural networks. Once a
-network is constructed, the *forward* operator is available with
+network is constructed, the **forward** operator is available with
 `apply_forward` and can be applied both in training and inference
-mode. The *tangent linear* and *adjoint *operators are also available.
+mode. The **tangent linear** and **adjoint** operators are also available.
 In addition, it is possible to access (both read
 and write) the networks parameters as a real vector.
 
@@ -40,7 +40,7 @@ neural network implemented in Keras into a well-formatted text file.
 ## Test suite
 
 The test suite consists of a set of python scripts testing various functionalities
-of the module. The test must be compiled (for example using `scons`) before they
+of the module. The tests must be compiled (for example using `scons`) before they
 can be executed.
 
 ## Examples
