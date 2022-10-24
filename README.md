@@ -1,6 +1,8 @@
 
 # The Fortran Neural Network (FNN) library
 
+[![DOI](https://zenodo.org/badge/556721935.svg)](https://zenodo.org/badge/latestdoi/556721935)
+
 The goal of the FNN library is to provide the `fnn` module, which can be used
 in Fortran code to implement simple, sequential neural networks. Once a
 network is constructed, the **forward** operator is available with
@@ -22,6 +24,8 @@ implement the `fnn` module. The python script is used to create text files
 (see Section *Creating a network*).
 - The test suite is located in the `test/` folder.
 - The module documentation can be found [here](https://cerea-daml.github.io/fnn/index.html).
+
+The code is archived on zenodo. TODO: mention the JAMES paper once it is out.
 
 ## Floating-point precision
 
