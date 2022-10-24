@@ -1,4 +1,4 @@
-name: Doxygen GitHub Pages Deploy Action
+name: doxygen action
 
 on:
   push:
@@ -10,4 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: langroodi/doxygenize@v1.7.0
+      - name: doxygen
+        uses: mattnotmitt/doxygen-action@v1.1.0
+      - name: deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./html
+
