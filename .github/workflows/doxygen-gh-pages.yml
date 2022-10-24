@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: langroodi/doxygenize@v1.6.1
+      - uses: langroodi/doxygenize@v1.7.0
