@@ -9,8 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: DenverCoder1/doxygen-github-pages-action@v1.1.0
+      - uses: mattnotmitt/doxygen-action@v1.9.4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          folder: doc/html
-          config_file: doc/Doxyfile
+          working-directory: 'doc'
