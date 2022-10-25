@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Farchi"
+  given-names: "Alban"
+  orcid: "https://orcid.org/0000-0002-4162-8289"
+- family-names: "Chrust"
+  given-names: "Marcin"
+- family-names: "Bocquet"
+  given-names: "Marc"
+- family-names: "Laloyaux"
+  given-names: "Patrick"
+- family-names: "Bonavita"
+  given-names: "Massimo"
+title: "The Fortran Neural Network (FNN) library"
+version: 1.0.0
+doi: 10.5281/zenodo.7245291
+date-released: 2022-10-24
+url: "https://github.com/cerea-daml/fnn"
