@@ -20,11 +20,10 @@ module fnn_layer_normalisation
     !> of a network variable per variable.
     type, extends(Layer) :: NormalisationLayer
         private
-        !> The multiplicative factor.
-        real(rk), allocatable :: alpha(:)
-        !> The additive term.
-        real(rk), allocatable :: beta(:)
     contains
+        !> @brief Reads the parameters from binary file.
+        !> Implemented by \ref norm_read_parameters.
+        procedure, pass, public :: read_parameters => norm_read_parameters
         !> @brief Saves the layer.
         !> Implemented by \ref norm_tofile.
         procedure, pass, public :: tofile => norm_tofile
@@ -50,26 +49,40 @@ contains
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: unit_num
         read(unit_num, *) self % input_size
-        allocate(self % alpha(self % input_size))
-        allocate(self % beta(self % input_size))
-        read(unit_num, *) self % alpha
-        read(unit_num, *) self % beta
         self % output_size = self % input_size
         self % batch_size = batch_size
-        self % num_parameters = 0
-        allocate(self % parameters(0))
+        self % num_parameters = 2 * self % input_size
+        allocate(self % parameters(self % num_parameters))
         allocate(self % forward_input(self % input_size, self % batch_size))
         allocate(self % tangent_linear_input(self % input_size, self % batch_size))
         allocate(self % adjoint_input(self % output_size, self % batch_size))
+        self % parameters = 0
         self % forward_input = 0
         self % tangent_linear_input = 0
         self % adjoint_input = 0
     end function norm_layer_fromfile
 
     !--------------------------------------------------
+    !> @brief Implements \ref normalisationlayer::read_parameters.
+    !>
+    !> Reads the parameters from binary file.
+    !> @param[inout] self The layer.
+    !> @param[in] unit_num The unit number for the read statement.
+    subroutine norm_read_parameters(self, unit_num)
+        class(NormalisationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: unit_num
+        real(r0), allocatable :: the_parameters(:)
+        ! read in r0 precision
+        allocate(the_parameters(size(self % parameters)))
+        read(unit_num) the_parameters
+        ! cast to rk precision
+        self % parameters = the_parameters
+    end subroutine norm_read_parameters
+
+    !--------------------------------------------------
     !> @brief Implements \ref normalisationlayer::tofile.
     !>
-    !> Saves the layer.
+    !> Saves the layer. (Not the parameters)
     !> @param[in] self The layer.
     !> @param[in] unit_num The unit number for the write statement.
     subroutine norm_tofile(self, unit_num)
@@ -77,8 +90,6 @@ contains
         integer(ik), intent(in) :: unit_num
         write(unit_num, fmt=*) 'normalisation'
         write(unit_num, fmt=*) self % input_size
-        write(unit_num, fmt=*) self % alpha
-        write(unit_num, fmt=*) self % beta
     end subroutine norm_tofile
 
     !--------------------------------------------------
@@ -109,7 +120,8 @@ contains
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
-        y = self % alpha * x + self % beta
+        y = self % parameters(1:self % input_size) * x&
+            + self % parameters(self % input_size+1:2*self % input_size)
     end subroutine norm_apply_forward
 
     !--------------------------------------------------
@@ -118,7 +130,8 @@ contains
     !> Applies the TL of the layer.
     !>
     !> @details  The TL operator reads
-    !> \f[d\mathbf{y} = \alpha d\mathbf{x}.\f]
+    !> \f[d\mathbf{y} = \alpha d\mathbf{x} + d\alpha\matbf{x}
+    !> + d\beta.\f]
     !>
     !> \b Note
     !>
@@ -138,7 +151,9 @@ contains
         real(rk), intent(in) :: dp(:)
         real(rk), intent(in) :: dx(:)
         real(rk), intent(out) :: dy(:)
-        dy = self % alpha * dx
+        dy = self % parameters(1:self % input_size) * dx&
+             + dp(1:self % input_size) * self % forward_input(:, member)&
+             + dp(self % input_size+1:2*self % input_size)
     end subroutine norm_apply_tangent_linear
 
     !--------------------------------------------------
@@ -148,6 +163,8 @@ contains
     !>
     !> @details  The adjoint operator reads
     !> \f[d\mathbf{x} = \alpha d\mathbf{y}.\f]
+    !> \f[d\alpha = \mathbf{x} d\mathbf{y}.\f]
+    !> \f[d\beta = d\mathbf{y}.\f]
     !>
     !> \b Note
     !>
@@ -170,7 +187,9 @@ contains
         real(rk), intent(inout) :: dy(:)
         real(rk), intent(out) :: dp(:)
         real(rk), intent(out) :: dx(:)
-        dx = self % alpha * dy
+        dx = self % parameters(1:self % input_size) * dy
+        dp(1:self % input_size) = self % forward_input(:, member) * dy
+        dp(self % input_size+1:2*self % input_size) = dy
     end subroutine norm_apply_adjoint
 
 end module fnn_layer_normalisation

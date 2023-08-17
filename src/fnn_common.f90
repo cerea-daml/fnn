@@ -9,10 +9,13 @@ module fnn_common
     implicit none
 
     private
-    public :: rk, ik, rand1d, rand2d
+    public :: rk, r0, ik, rand1d, rand2d
 
     !> The precision for real numbers.
     integer, parameter :: rk = real64
+
+    !> Always use single precision to read bin files
+    integer, parameter :: r0 = real32
 
     !> The precision for integer numbers.
     integer, parameter :: ik = int32

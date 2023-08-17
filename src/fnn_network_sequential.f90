@@ -5,7 +5,9 @@ module fnn_network_sequential
     use fnn_common
     use fnn_layer
     use fnn_layer_dense
+    use fnn_layer_frozen_dense
     use fnn_layer_normalisation
+    use fnn_layer_frozen_normalisation
     use fnn_layer_dropout
 
     implicit none
@@ -114,15 +116,17 @@ contains
     !> @param[in] batch_size The value for layer::batch_size.
     !> @param[in] filename The name of the file to read.
     !> @return The constructed network.
-    type(SequentialNeuralNetwork) function snn_fromfile(batch_size, filename) result(self)
+    type(SequentialNeuralNetwork) function snn_fromfile(batch_size, filename_txt, filename_bin) result(self)
         integer(ik), intent(in) :: batch_size
-        character(len=*), intent(in) :: filename
+        character(len=*), intent(in) :: filename_txt
+        character(len=*), intent(in) :: filename_bin
         integer(ik) :: fileunit
         character(len=100) :: network_name
         character(len=100) :: layer_name
         integer(ik) :: i
         integer(ik) :: ip
-        open(newunit=fileunit, file=filename, action='read')
+        ! read architecture
+        open(newunit=fileunit, file=filename_txt, action='read')
         read(fileunit, fmt=*) network_name
         if ( trim(network_name) == 'sequential' ) then
             read(fileunit, fmt=*) self % num_layers
@@ -136,25 +140,34 @@ contains
                     case('normalisation')
                         allocate(NormalisationLayer::self % list_layers(i) % this_layer)
                         self % list_layers(i) % this_layer = norm_layer_fromfile(batch_size, fileunit)
-                        self % ip_start(i) = ip + 1
-                        self % ip_end(i) = ip
+                    case('frozen-normalisation')
+                        allocate(FrozenNormalisationLayer::self % list_layers(i) % this_layer)
+                        self % list_layers(i) % this_layer = frozen_norm_layer_fromfile(batch_size, fileunit)
                     case('dropout')
                         allocate(DropoutLayer::self % list_layers(i) % this_layer)
                         self % list_layers(i) % this_layer = dropout_layer_fromfile(batch_size, fileunit)
-                        self % ip_start(i) = ip + 1
-                        self % ip_end(i) = ip
+                    case('frozen-dense')
+                        allocate(FrozenDenseLayer::self % list_layers(i) % this_layer)
+                        self % list_layers(i) % this_layer = frozen_dense_layer_fromfile(batch_size, fileunit)
                     case default ! default to dense layer
                         allocate(DenseLayer::self % list_layers(i) % this_layer)
                         self % list_layers(i) % this_layer = dense_layer_fromfile(batch_size, fileunit)
-                        self % ip_start(i) = ip + 1
-                        ip = ip + self % list_layers(i) % this_layer % get_num_parameters()
-                        self % ip_end(i) = ip
                 end select
+                self % ip_start(i) = ip + 1
+                ip = ip + self % list_layers(i) % this_layer % get_num_parameters()
+                self % ip_end(i) = ip
             end do
             self % num_parameters = ip
         else
             print *, 'ERROR: unknown network name (', trim(network_name), ')'
         end if
+        close(fileunit)
+        ! read parameters
+        open(newunit=fileunit, file=filename_bin, form='unformatted', access='stream', action='read')
+        do i = 1, self % num_layers
+            call self % list_layers(i) % this_layer % read_parameters(fileunit)
+        end do
+        !read(fileunit) parameters
         close(fileunit)
     end function snn_fromfile
 

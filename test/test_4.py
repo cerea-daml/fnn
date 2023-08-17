@@ -4,14 +4,10 @@ import tensorflow as tf
 from keras_to_fnn import keras_file_to_txt
 from subprocess import run as srun
 from pyfnn import fromfile
-from scipy.io import FortranFile
 from tqdm import trange
 
 # set double precision in tensorflow
 tf.keras.backend.set_floatx('float64')
-
-# use double format in fortan
-fortran_float = 'f8'
 
 def unit_test(Ne):
 
@@ -29,28 +25,43 @@ def unit_test(Ne):
     model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='relu'))
     model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='tanh'))
     model.add(tf.keras.layers.Dense(Ny, bias_initializer='glorot_uniform'))
+    model.layers[1].trainable = False
     model.compile(loss='mse')
 
-    fname_1 = 'test_4_model.h5'
+    fname_1 = 'test_4_model.keras'
     fname_2 = 'test_4_model.txt'
+    fname_3 = 'test_4_model.bin'
+
     model.save(fname_1)
     del model
-    keras_file_to_txt(fname_2, fname_1, add_norm_in=True, norm_alpha_in=alpha, norm_beta_in=beta, 
-            add_norm_out=True, norm_alpha_out=gamma, norm_beta_out=delta)
-
+    keras_file_to_txt(
+        fname_2,
+        fname_3,
+        fname_1,
+        norm_in=dict(
+            freeze=True,
+            alpha=alpha,
+            beta=beta,
+        ),
+        norm_out=dict(
+            freeze=False,
+            alpha=gamma,
+            beta=delta,
+        ),
+    )
     srun(['./test_4.x'])
 
-    model = fromfile(fname_2)
+    model = fromfile(fname_2, fname_3)
+    Np = model.num_parameters
 
-    f = FortranFile('test_4_out.bin', 'r')
-    x = f.read_reals(fortran_float).reshape(Ne, Nx)
-    y1 = f.read_reals(fortran_float).reshape(Ne, Ny)
-    dp = f.read_reals(fortran_float)
-    dx = f.read_reals(fortran_float).reshape(Ne, Nx)
-    dy1 = f.read_reals(fortran_float).reshape(Ne, Ny)
+    with open('test_4_out.bin', 'rb') as f:
+        x = np.fromfile(f, count=Ne*Nx).reshape((Ne, Nx))
+        y1 = np.fromfile(f, count=Ne*Ny).reshape((Ne, Ny))
+        dp = np.fromfile(f, count=Np)
+        dx = np.fromfile(f, count=Ne*Nx).reshape((Ne, Nx))
+        dy1 = np.fromfile(f, count=Ne*Ny).reshape((Ne, Ny))
     y2 = np.zeros((Ne, Ny))
     dy2 = np.zeros((Ne, Ny))
-    f.close()
 
     for i in range(Ne):
         y2[i] = model.apply_linearise(x[i])

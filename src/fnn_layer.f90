@@ -64,6 +64,9 @@ module fnn_layer
         !> @brief Returns the number of parameters.
         !> Implemented by \ref layer_get_num_parameters.
         procedure, pass, public :: get_num_parameters => layer_get_num_parameters
+        !> @brief Reads the parameters from binary file.
+        !> Implemented by \ref layer_read_parameters.
+        procedure, pass, public :: read_parameters => layer_read_parameters
         !> @brief Setter for layer::parameters.
         !> Implemented by \ref layer_set_parameters.
         procedure, pass, public :: set_parameters => layer_set_parameters
@@ -97,6 +100,21 @@ contains
         class(Layer), intent(in) :: self
         num_parameters = self % num_parameters
     end function layer_get_num_parameters
+
+    !--------------------------------------------------
+    !> @brief Implements \ref layer::read_parameters.
+    !>
+    !> Reads the parameters from binary file.
+    !> @details \b Note
+    !>
+    !> This should be overridden by each subclass.
+    !> @param[inout] self The layer.
+    !> @param[in] unit_num The unit number for the read statement.
+    subroutine layer_read_parameters(self, unit_num)
+        class(Layer), intent(inout) :: self
+        integer(ik), intent(in) :: unit_num
+        print *, 'WARNING: using non-implemented method Layer::read_parameters()'
+    end subroutine layer_read_parameters
 
     !--------------------------------------------------
     !> @brief Implements \ref layer::set_parameters.

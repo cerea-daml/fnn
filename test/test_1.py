@@ -24,21 +24,35 @@ def unit_test(Ne):
     model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='relu'))
     model.add(tf.keras.layers.Dense(Ni, bias_initializer='glorot_uniform', activation='tanh'))
     model.add(tf.keras.layers.Dense(Ny, bias_initializer='glorot_uniform'))
+    model.layers[1].trainable = False
     model.compile(loss='mse')
 
     x = np.random.randn(Ne, Nx)
     xn = alpha * x + beta
-    y1 = gamma * model.predict(xn) + delta
+    y1 = gamma * model.predict(xn, verbose=0) + delta
 
-    fname_1 = 'test_1_model.h5'
+    fname_1 = 'test_1_model.keras'
     fname_2 = 'test_1_model.txt'
+    fname_3 = 'test_1_model.bin'
 
     model.save(fname_1)
     del model
-    keras_file_to_txt(fname_2, fname_1, add_norm_in=True, norm_alpha_in=alpha, norm_beta_in=beta,
-            add_norm_out=True, norm_alpha_out=gamma, norm_beta_out=delta)
-
-    model = fromfile(fname_2)
+    keras_file_to_txt(
+        fname_2,
+        fname_3,
+        fname_1,
+        norm_in=dict(
+            freeze=True,
+            alpha=alpha,
+            beta=beta,
+        ),
+        norm_out=dict(
+            freeze=False,
+            alpha=gamma,
+            beta=delta,
+        ),
+    )
+    model = fromfile(fname_2, fname_3)
     y2 = np.zeros((Ne, Ny))
     for i in range(Ne):
         y2[i] = model.apply(x[i])

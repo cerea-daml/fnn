@@ -1,6 +1,6 @@
 
-!> @brief Module dedicated to the class \ref denselayer.
-module fnn_layer_dense
+!> @brief Module dedicated to the class \ref frozendenselayer.
+module fnn_layer_frozen_dense
 
     use fnn_common
     use fnn_activation_linear
@@ -11,10 +11,10 @@ module fnn_layer_dense
     implicit none
 
     private
-    public :: DenseLayer, construct_dense_layer, dense_layer_fromfile
+    public :: FrozenDenseLayer, construct_frozen_dense_layer, frozen_dense_layer_fromfile
 
     !--------------------------------------------------
-    !> @brief Implements a dense (fully-connected) layer.
+    !> @brief Implements a frozen dense (fully-connected) layer.
     !> @details This layer has two sets of (trainable) parameters:
     !> - the kernel \f$\mathbf{W}\f$, a matrix of size (layer::output_size, layer::input_size);
     !> - the bias \f$\mathbf{b}\f$, a vector of size (layer::output_size).
@@ -29,32 +29,34 @@ module fnn_layer_dense
     !>
     !> A similar relationship holds between \f$d\mathbf{b}\f$,
     !> \f$d\mathbf{W}\f$ and \f$d\mathbf{p}\f$ in the
-    !> \ref dense_apply_tangent_linear and \ref dense_apply_adjoint
+    !> \ref frozen_dense_apply_tangent_linear and \ref frozen_dense_apply_adjoint
     !> methods.
-    type, extends(Layer) :: DenseLayer
+    type, extends(Layer) :: FrozenDenseLayer
         private
+        !> The frozen parameters.
+        real(rk), allocatable :: frozen_parameters(:)
     contains
         !> @brief Reads the parameters from binary file.
-        !> Implemented by \ref dense_read_parameters.
-        procedure, pass, public :: read_parameters => dense_read_parameters
+        !> Implemented by \ref frozen_dense_read_parameters.
+        procedure, pass, public :: read_parameters => frozen_dense_read_parameters
         !> @brief Saves the layer.
-        !> Implemented by \ref dense_tofile.
-        procedure, pass, public :: tofile => dense_tofile
+        !> Implemented by \ref frozen_dense_tofile.
+        procedure, pass, public :: tofile => frozen_dense_tofile
         !> @brief Applies and linearises the layer.
-        !> Implemented by \ref dense_apply_forward.
-        procedure, pass, public :: apply_forward => dense_apply_forward
+        !> Implemented by \ref frozen_dense_apply_forward.
+        procedure, pass, public :: apply_forward => frozen_dense_apply_forward
         !> @brief Applies the TL of the layer.
-        !> Implemented by \ref dense_apply_tangent_linear.
-        procedure, pass, public :: apply_tangent_linear => dense_apply_tangent_linear
+        !> Implemented by \ref frozen_dense_apply_tangent_linear.
+        procedure, pass, public :: apply_tangent_linear => frozen_dense_apply_tangent_linear
         !> @brief Applies the adjoint of the layer.
-        !> Implemented by \ref dense_apply_adjoint.
-        procedure, pass, public :: apply_adjoint => dense_apply_adjoint
-    end type DenseLayer
+        !> Implemented by \ref frozen_dense_apply_adjoint.
+        procedure, pass, public :: apply_adjoint => frozen_dense_apply_adjoint
+    end type FrozenDenseLayer
 
 contains
 
     !--------------------------------------------------
-    !> @brief Manual constructor for class \ref denselayer.
+    !> @brief Manual constructor for class \ref frozendenselayer.
     !> Only for testing purpose.
     !> @param[in] input_size The value for layer::input_size.
     !> @param[in] output_size The value for layer::output_size.
@@ -62,7 +64,7 @@ contains
     !> @param[in] activation_name The activation function.
     !> @param[in] initialisation_name The initialisation for model parameters.
     !> @return The constructed layer.
-    type(DenseLayer) function construct_dense_layer(input_size, output_size,&
+    type(FrozenDenseLayer) function construct_frozen_dense_layer(input_size, output_size,&
             batch_size, activation_name, initialisation_name) result(self)
         integer(ik), intent(in) :: input_size
         integer(ik), intent(in) :: output_size
@@ -72,7 +74,7 @@ contains
         self % input_size = input_size
         self % output_size = output_size
         self % batch_size = batch_size
-        self % num_parameters = (input_size+1) * output_size
+        self % num_parameters = 0
         select case(trim(activation_name))
             case('tanh')
                 allocate(TanhActivation::self % activation)
@@ -84,35 +86,37 @@ contains
                 allocate(LinearActivation::self % activation)
                 self % activation = construct_linear_activation(output_size, batch_size)
         end select
-        allocate(self % parameters(self % num_parameters))
+        allocate(self % parameters(0))
+        allocate(self % frozen_parameters((input_size+1) * output_size))
         allocate(self % forward_input(input_size, batch_size))
         allocate(self % tangent_linear_input(input_size, batch_size))
         allocate(self % adjoint_input(output_size, batch_size))
         select case(trim(initialisation_name))
             case('rand')
-                call rand1d(self % parameters)
+                call rand1d(self % frozen_parameters)
             case default
-                self % parameters = 0
+                self % frozen_parameters = 0
         end select
         self % forward_input = 0
         self % tangent_linear_input = 0
         self % adjoint_input = 0
-    end function construct_dense_layer
+    end function construct_frozen_dense_layer
 
     !--------------------------------------------------
-    !> @brief Constructor for class \ref denselayer from a file.
+    !> @brief Constructor for class \ref frozendenselayer from a file.
     !> @param[in] batch_size The value for layer::batch_size.
     !> @param[in] unit_num The unit number for the read statements.
     !> @return The constructed layer.
-    type(DenseLayer) function dense_layer_fromfile(batch_size, unit_num) result (self)
+    type(FrozenDenseLayer) function frozen_dense_layer_fromfile(batch_size, unit_num) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: unit_num
         character(len=100) :: activation_name
         read(unit_num, *) self % input_size
         read(unit_num, *) self % output_size
         self % batch_size = batch_size
-        self % num_parameters = (self % input_size+1) * self % output_size
-        allocate(self % parameters(self % num_parameters))
+        self % num_parameters = 0
+        allocate(self % frozen_parameters((self % input_size+1) * self % output_size))
+        allocate(self % parameters(0))
         read(unit_num, *) activation_name
         select case(trim(activation_name))
             case('tanh')
@@ -128,46 +132,46 @@ contains
         allocate(self % forward_input(self % input_size, self % batch_size))
         allocate(self % tangent_linear_input(self % input_size, self % batch_size))
         allocate(self % adjoint_input(self % output_size, self % batch_size))
-        self % parameters = 0
+        self % frozen_parameters = 0
         self % forward_input = 0
         self % tangent_linear_input = 0
         self % adjoint_input = 0
-    end function dense_layer_fromfile
+    end function frozen_dense_layer_fromfile
 
     !--------------------------------------------------
-    !> @brief Implements \ref denselayer::read_parameters.
+    !> @brief Implements \ref frozendenselayer::read_parameters.
     !>
     !> Reads the parameters from binary file.
     !> @param[inout] self The layer.
     !> @param[in] unit_num The unit number for the read statement.
-    subroutine dense_read_parameters(self, unit_num)
-        class(DenseLayer), intent(inout) :: self
+    subroutine frozen_dense_read_parameters(self, unit_num)
+        class(FrozenDenseLayer), intent(inout) :: self
         integer(ik), intent(in) :: unit_num
         real(r0), allocatable :: the_parameters(:)
         ! read in r0 precision
-        allocate(the_parameters(size(self % parameters)))
+        allocate(the_parameters(size(self % frozen_parameters)))
         read(unit_num) the_parameters
         ! cast to rk precision
-        self % parameters = the_parameters
-    end subroutine dense_read_parameters
+        self % frozen_parameters = the_parameters
+    end subroutine frozen_dense_read_parameters
 
     !--------------------------------------------------
-    !> @brief Implements \ref denselayer::tofile.
+    !> @brief Implements \ref frozendenselayer::tofile.
     !>
     !> Saves the layer. (Not the parameters)
     !> @param[in] self The layer.
     !> @param[in] unit_num The unit number for the write statement.
-    subroutine dense_tofile(self, unit_num)
-        class(DenseLayer), intent(in) :: self
+    subroutine frozen_dense_tofile(self, unit_num)
+        class(FrozenDenseLayer), intent(in) :: self
         integer(ik), intent(in) :: unit_num
-        write(unit_num, fmt=*) 'dense'
+        write(unit_num, fmt=*) 'frozen-dense'
         write(unit_num, fmt=*) self % input_size
         write(unit_num, fmt=*) self % output_size
         call self % activation % tofile(unit_num)
-    end subroutine dense_tofile
+    end subroutine frozen_dense_tofile
 
     !--------------------------------------------------
-    !> @brief Implements \ref denselayer::apply_forward.
+    !> @brief Implements \ref frozendenselayer::apply_forward.
     !>
     !> Applies and linearises the layer.
     !>
@@ -195,103 +199,87 @@ contains
     !> @param[in] member The index inside the batch.
     !> @param[in] x The input of the layer.
     !> @param[out] y The output of the layer.
-    subroutine dense_apply_forward(self, train, member, x, y)
-        class(DenseLayer), intent(inout) :: self
+    subroutine frozen_dense_apply_forward(self, train, member, x, y)
+        class(FrozenDenseLayer), intent(inout) :: self
         logical, intent(in) :: train
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
         self % forward_input(:, member) = x
         y = matmul(&
-            reshape(self % parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
+            reshape(self % frozen_parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
             [self % output_size, self % input_size]),&
             x)
-        y = y + self % parameters(1:self % output_size)
+        y = y + self % frozen_parameters(1:self % output_size)
         call self % activation % apply_forward(member, y, y)
-    end subroutine dense_apply_forward
+    end subroutine frozen_dense_apply_forward
 
     !--------------------------------------------------
-    !> @brief Implements \ref denselayer::apply_tangent_linear.
+    !> @brief Implements \ref frozendenselayer::apply_tangent_linear.
     !>
     !> Applies the TL of the layer.
     !>
     !> @details  The TL operator reads
     !> \f[d\mathbf{y} = \mathbf{A}(\mathbf{Wx+b})[\mathbf{W}d
-    !> \mathbf{x}+d\mathbf{Wx}+d\mathbf{b}],\f]
+    !> \mathbf{x}],\f]
     !> which is implemented by
     !> \f[d\mathbf{y} = \mathbf{W}d\mathbf{x},\f]
-    !> \f[d\mathbf{y} = d\mathbf{y} + d\mathbf{Wx},\f]
-    !> \f[d\mathbf{y} = d\mathbf{y} + d\mathbf{b},\f]
     !> \f[d\mathbf{y} = \mathbf{A}(\mathbf{Wx+b})d\mathbf{y}.\f]
     !>
     !> \b Note
     !>
     !> This method should only be called after
-    !> \ref denselayer::apply_forward.
+    !> \ref frozendenselayer::apply_forward.
     !> @param[in] self The layer.
     !> @param[in] member The index inside the batch.
     !> @param[in] dp The parameter perturbation.
     !> @param[in] dx The state perturbation.
     !> @param[out] dy The output perturbation.
-    subroutine dense_apply_tangent_linear(self, member, dp, dx, dy)
-        class(DenseLayer), intent(in) :: self
+    subroutine frozen_dense_apply_tangent_linear(self, member, dp, dx, dy)
+        class(FrozenDenseLayer), intent(in) :: self
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: dp(:)
         real(rk), intent(in) :: dx(:)
         real(rk), intent(out) :: dy(:)
         dy = matmul(&
-            reshape(self % parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
+            reshape(self % frozen_parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
             [self % output_size, self % input_size]),&
             dx)
-        dy = dy + matmul(&
-            reshape(dp(self % output_size+1:self % output_size*(self % input_size+1)),&
-            [self % output_size, self % input_size]),&
-            self % forward_input(:, member))
-        dy = dy + dp(1:self % output_size)
         call self % activation % apply_tangent_linear(member, dy, dy)
-    end subroutine dense_apply_tangent_linear
+    end subroutine frozen_dense_apply_tangent_linear
 
     !--------------------------------------------------
-    !> @brief Implements \ref denselayer::apply_adjoint.
+    !> @brief Implements \ref frozendenselayer::apply_adjoint.
     !>
     !> Applies the adjoint of the layer.
     !>
     !> @details The adjoint operator is implemented by
     !> \f[d\mathbf{y} = \mathbf{A}(\mathbf{Wx+b})^{\top}d\mathbf{y},\f]
-    !> \f[d\mathbf{b} = d\mathbf{y},\f]
-    !> \f[d\mathbf{W} = d\mathbf{yx}^{\top},\f]
     !> \f[d\mathbf{x} = \mathbf{W}^{\top}d\mathbf{y}.\f]
     !>
     !> \b Note
     !>
     !> This method should only be called after
-    !> \ref denselayer::apply_forward.
+    !> \ref frozendenselayer::apply_forward.
     !> 
     !> The value of \f$d\mathbf{y}\f$ gets overwritten in this method
-    !> (bad side-effect). This could be easily solved by merging the first
-    !> two algorithmic lines into
-    !> \f[d\mathbf{b} = \mathbf{A}(\mathbf{Wx+b})^{\top}d\mathbf{y}.\f]
+    !> (bad side-effect). 
     !> For this reason, the intent of `dy` is declared `inout`.
     !> @param[inout] self The layer.
     !> @param[in] member The index inside the batch.
     !> @param[inout] dy The output perturbation.
     !> @param[out] dp The parameter perturbation.
     !> @param[out] dx The state perturbation.
-    subroutine dense_apply_adjoint(self, member, dy, dp, dx)
-        class(DenseLayer), intent(in) :: self
+    subroutine frozen_dense_apply_adjoint(self, member, dy, dp, dx)
+        class(FrozenDenseLayer), intent(in) :: self
         integer(ik), intent(in) :: member
         real(rk), intent(inout) :: dy(:)
         real(rk), intent(out) :: dp(:)
         real(rk), intent(out) :: dx(:)
         call self % activation % apply_adjoint(member, dy, dy)
-        dp(1:self % output_size) = dy
-        dp(self % output_size+1:self % output_size*(self % input_size+1)) = reshape(matmul(&
-            reshape(dp(1:self % output_size), [self % output_size, 1]),&
-            reshape(self % forward_input(:, member), [1, self % input_size])),&
-            [self % output_size*self % input_size])
-        dx = matmul(transpose(reshape(self % parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
-            [self % output_size, self % input_size])), dp(1:self % output_size))
-    end subroutine dense_apply_adjoint
+        dx = matmul(transpose(reshape(self % frozen_parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
+            [self % output_size, self % input_size])), dy)
+    end subroutine frozen_dense_apply_adjoint
 
-end module fnn_layer_dense
+end module fnn_layer_frozen_dense
 

@@ -11,7 +11,7 @@ program main
     real(rk), allocatable :: x(:, :), y(:, :), dp(:), dx(:, :), dy(:, :)
 
     Ne = 100
-    network = snn_fromfile(Ne, 'test_4_model.txt')
+    network = snn_fromfile(Ne, 'test_4_model.txt', 'test_4_model.bin')
     Nx = network % get_input_size()
     Ny = network % get_output_size()
     Np = network % get_num_parameters()
@@ -35,13 +35,13 @@ program main
     end do
 
 
-    open(unit=1, file='test_4_out.bin', form='unformatted')
-    write(1) x
-    write(1) y
-    write(1) dp
-    write(1) dx
-    write(1) dy
-    close(1)
+    open(unit=10, file='test_4_out.bin', form='unformatted', access='stream', action='write')
+    write(10) x
+    write(10) y
+    write(10) dp
+    write(10) dx
+    write(10) dy
+    close(10)
 
 end program main
 

@@ -1,12 +1,25 @@
 
 import numpy as np
-from pyfnn import SequentialNetwork
+import pyfnn
 
 def unit_test_gradient(list_eps, Ne):
 
-    def test_one(network, eps):
+    def test_one(eps):
 
-        network.initialise('randn')
+        Nx = 5
+        Ni = 6
+        Ny = 4
+
+        network = pyfnn.SequentialNetwork()
+        network.layers.append(pyfnn.FrozenNormalisationLayer(Nx, np.random.randn(2*Nx)))
+        network.layers.append(pyfnn.FrozenDenseLayer(Nx, Ni, 'relu', np.random.randn((Nx+1)*Ni)))
+        network.layers.append(pyfnn.DenseLayer(Ni, Ni, 'tanh', np.empty((Ni+1)*Ni)))
+        network.layers.append(pyfnn.DenseLayer(Ni, Ny, 'linear', np.empty((Ni+1)*Ny)))
+        network.layers.append(pyfnn.NormalisationLayer(Ny, np.empty(2*Ny)))
+
+        p = np.random.randn(network.num_parameters)
+        network.parameters = p
+
         x = np.random.randn(network.layers[0].Nin)
         y = network.apply_linearise(x)
 
@@ -22,26 +35,10 @@ def unit_test_gradient(list_eps, Ne):
 
         return abs(2*(d1-d2)/(d1+d2)).max()
 
-    Nx = 5
-    Ni = 6
-    Ny = 4
-
-    alpha = np.random.randn(Nx)
-    beta = np.random.randn(Nx)
-    gamma = np.random.randn(Ny)
-    delta = np.random.randn(Ny)
-
-    network = SequentialNetwork()
-    network.add_layer('normalisation', Nx, alpha, beta)
-    network.add_layer('dense', Nx, Ni, activation='relu', initialisation='randn')
-    network.add_layer('dense', Ni, Ni, activation='tanh', initialisation='randn')
-    network.add_layer('dense', Ni, Ny, activation='linear', initialisation='randn')
-    network.add_layer('normalisation', Ny, gamma, delta)
-
     error = np.zeros((list_eps.size, Ne))
     for (j, eps) in enumerate(list_eps):
         for i in range(Ne):
-            error[j, i] = test_one(network, eps)
+            error[j, i] = test_one(eps)
 
     return error
 
@@ -72,9 +69,21 @@ def multi_test_gradient(Ne):
 
 def unit_test_adjoint(Ne):
 
-    def test_one(network):
+    def test_one():
 
-        network.initialise('randn')
+        Nx = 5
+        Ni = 6
+        Ny = 4
+
+        network = pyfnn.SequentialNetwork()
+        network.layers.append(pyfnn.FrozenNormalisationLayer(Nx, np.random.randn(2*Nx)))
+        network.layers.append(pyfnn.FrozenDenseLayer(Nx, Ni, 'relu', np.random.randn((Nx+1)*Ni)))
+        network.layers.append(pyfnn.DenseLayer(Ni, Ni, 'tanh', np.empty((Ni+1)*Ni)))
+        network.layers.append(pyfnn.DenseLayer(Ni, Ny, 'linear', np.empty((Ni+1)*Ny)))
+        network.layers.append(pyfnn.NormalisationLayer(Ny, np.empty(2*Ny)))
+
+        p = np.random.randn(network.num_parameters)
+        network.parameters = p
         x = np.random.randn(network.layers[0].Nin)
         y = network.apply_linearise(x)
 
@@ -90,25 +99,9 @@ def unit_test_adjoint(Ne):
 
         return abs(2*(d1-d2)/(d1+d2)).max()
 
-    Nx = 5
-    Ni = 6
-    Ny = 4
-
-    alpha = np.random.randn(Nx)
-    beta = np.random.randn(Nx)
-    gamma = np.random.randn(Ny)
-    delta = np.random.randn(Ny)
-
-    network = SequentialNetwork()
-    network.add_layer('normalisation', Nx, alpha, beta)
-    network.add_layer('dense', Nx, Ni, activation='relu', initialisation='randn')
-    network.add_layer('dense', Ni, Ni, activation='tanh', initialisation='randn')
-    network.add_layer('dense', Ni, Ny, activation='linear', initialisation='randn')
-    network.add_layer('normalisation', Ny, gamma, delta)
-
     error = np.zeros((Ne))
     for i in range(Ne):
-        error[i] = test_one(network)
+        error[i] = test_one()
 
     return error
 

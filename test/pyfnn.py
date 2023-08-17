@@ -7,17 +7,17 @@ import numpy as np
 # activation functions
 #--------------------------------------------------
 
-def construct_activation(name, **kwargs):
+def construct_activation(name):
     activation_class = dict(
             linear=LinearActivation,
             tanh=TanhActivation,
             relu=ReluActivation,
             )
-    return activation_class[name](**kwargs)
+    return activation_class[name]()
 
 class AbstractActivation(ABC):
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         pass
 
     @abstractmethod
@@ -36,7 +36,7 @@ class AbstractActivation(ABC):
 
 class LinearActivation:
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         pass
 
     def apply(self, z):
@@ -53,8 +53,8 @@ class LinearActivation:
 
 class TanhActivation(AbstractActivation):
 
-    def __init__(self, **kwargs):
-        super(TanhActivation, self).__init__(**kwargs)
+    def __init__(self):
+        super(TanhActivation, self).__init__()
 
     def apply(self, z):
         return np.tanh(z)
@@ -66,8 +66,8 @@ class TanhActivation(AbstractActivation):
 
 class ReluActivation(AbstractActivation):
 
-    def __init__(self, **kwargs):
-        super(ReluActivation, self).__init__(**kwargs)
+    def __init__(self):
+        super(ReluActivation, self).__init__()
 
     def apply(self, z):
         return np.maximum(z, 0)
@@ -80,49 +80,45 @@ class ReluActivation(AbstractActivation):
 # layers
 #--------------------------------------------------
 
-def layer_fromfile(f):
-    layer_name = f.readline().strip()
+def layer_fromfile(f_txt, f_bin):
+    layer_name = f_txt.readline().strip()
     if layer_name == 'dense':
-        Nin = int(f.readline().strip())
-        Nout = int(f.readline().strip())
-        p = np.loadtxt(f, max_rows=1)
-        activation = f.readline().strip()
-        layer = DenseLayer(Nin, Nout, activation, initialisation='value', initialisation_kwargs=dict(value=p))
-        return layer
+        Nin = int(f_txt.readline().strip())
+        Nout = int(f_txt.readline().strip())
+        activation = f_txt.readline().strip()
+        p = np.fromfile(f_bin, 'f', count=(Nin+1)*Nout)
+        return DenseLayer(Nin, Nout, activation, p)
+    elif layer_name == 'frozen-dense':
+        Nin = int(f_txt.readline().strip())
+        Nout = int(f_txt.readline().strip())
+        activation = f_txt.readline().strip()
+        p = np.fromfile(f_bin, 'f', count=(Nin+1)*Nout)
+        return FrozenDenseLayer(Nin, Nout, activation, p)
     elif layer_name == 'normalisation':
-        Ninout = int(f.readline().strip())
-        alpha = np.loadtxt(f, max_rows=1)
-        beta = np.loadtxt(f, max_rows=1)
-        layer = NormalisationLayer(Ninout, alpha, beta)
-        return layer
+        Ninout = int(f_txt.readline().strip())
+        p = np.fromfile(f_bin, 'f', count=2*Ninout)
+        return NormalisationLayer(Ninout, p)
+    elif layer_name == 'frozen-normalisation':
+        Ninout = int(f_txt.readline().strip())
+        p = np.fromfile(f_bin, 'f', count=2*Ninout)
+        return FrozenNormalisationLayer(Ninout, p)
     elif layer_name == 'dropout':
-        Ninout = int(f.readline().strip())
-        rate = np.loadtxt(f, max_rows=1)
-        layer = DropoutLayer(Ninout, rate)
-        return layer
+        Ninout = int(f_txt.readline().strip())
+        rate = np.loadtxt(f_txt, max_rows=1)
+        return DropoutLayer(Ninout, rate)
     else:
         print('unknown layer type:', layer_name)
 
-def construct_layer(name, *args, **kwargs):
-    layer_class = dict(
-            dense=DenseLayer,
-            normalisation=NormalisationLayer,
-            )
-    return layer_class[name](*args, **kwargs)
+class FrozenNormalisationLayer:
 
-class NormalisationLayer:
-
-    def __init__(self, Ninout, alpha, beta):
+    def __init__(self, Ninout, parameters):
         self.Nin = Ninout
         self.Nout = Ninout
-        self.alpha = alpha
-        self.beta = beta
+        self.alpha = parameters[:Ninout]
+        self.beta = parameters[Ninout:]
         self.num_parameters = 0
         self.parameters = np.zeros(0)
         self.keras_parameters = np.zeros(0)
-
-    def initialise(self, *args, **kwargs):
-        pass
 
     def apply(self, x):
         return self.alpha * x + self.beta
@@ -142,6 +138,41 @@ class NormalisationLayer:
     def apply_adjoint_p(self, dy):
         return np.zeros(0)
 
+class NormalisationLayer:
+
+    def __init__(self, Ninout, parameters):
+        self.Nin = Ninout
+        self.Nout = Ninout
+        self.parameters = parameters.copy()
+        self.alpha = self.parameters[:Ninout]
+        self.beta = self.parameters[Ninout:]
+        self.num_parameters = 2*Ninout
+        self.keras_parameters = self.parameters
+
+    def apply(self, x):
+        return self.alpha * x + self.beta
+
+    def apply_linearise(self, x):
+        self.x = x.copy()
+        return self.apply(x)
+
+    def apply_tangent_linear_x(self, dx):
+        return self.alpha * dx
+
+    def apply_adjoint_x(self, dy):
+        return self.alpha * dy
+
+    def apply_tangent_linear_p(self, dp):
+        da = dp[:self.Nin]
+        db = dp[self.Nin:]
+        return da*self.x + db
+
+    def apply_adjoint_p(self, dy):
+        da = self.x * dy
+        db = dy
+        dp = np.concatenate([da, db])
+        return dp
+
 class DropoutLayer:
 
     def __init__(self, Ninout, rate):
@@ -151,9 +182,6 @@ class DropoutLayer:
         self.num_parameters = 0
         self.parameters = np.zeros(0)
         self.keras_parameters = np.zeros(0)
-
-    def initialise(self, *args, **kwargs):
-        pass
 
     def apply(self, x):
         return x
@@ -173,35 +201,55 @@ class DropoutLayer:
     def apply_adjoint_p(self, dy):
         return np.zeros(0)
 
+class FrozenDenseLayer:
+
+    def __init__(self, Nin, Nout, activation, parameters):
+        self.Nin = Nin
+        self.Nout = Nout
+        self.num_parameters = 0
+        self.parameters = np.zeros(0)
+        self.keras_parameters = np.zeros(0)
+        self.b = parameters[:self.Nout]
+        self.w = parameters[self.Nout:].reshape((self.Nout, self.Nin), order='F')
+        self.activation = construct_activation(activation)
+
+    def apply(self, x):
+        z = self.w@x + self.b
+        return self.activation.apply(z)
+
+    def apply_linearise(self, x):
+        self.x = x.copy()
+        z = self.w@x + self.b
+        return self.activation.apply_linearise(z)
+
+    def apply_tangent_linear_x(self, dx):
+        return self.activation.apply_tangent_linear(self.w@dx)
+
+    def apply_adjoint_x(self, dy):
+        return self.w.T@self.activation.apply_adjoint(dy)
+
+    def apply_tangent_linear_p(self, dp):
+        return np.zeros(self.Nout)
+
+    def apply_adjoint_p(self, dy):
+        return np.zeros(0)
+
 class DenseLayer:
 
-    def __init__(self, Nin, Nout, activation='linear', activation_kwargs=None, initialisation='randn', initialisation_kwargs=None):
+    def __init__(self, Nin, Nout, activation, parameters):
         self.Nin = Nin
         self.Nout = Nout
         self.num_parameters = self.Nout * (self.Nin+1)
-        self.parameters = np.empty(self.num_parameters)
+        self.parameters = parameters.copy()
         self.b = self.parameters[:self.Nout]
         self.w = self.parameters[self.Nout:].reshape((self.Nout, self.Nin), order='F')
-
-        initialisation_kwargs = initialisation_kwargs or {}
-        self.initialise(initialisation, **initialisation_kwargs)
-
-        activation_kwargs = activation_kwargs or {}
-        self.activation = construct_activation(activation, **activation_kwargs)
+        self.activation = construct_activation(activation)
 
     @property
     def keras_parameters(self):
         b_parameters = self.parameters[:self.Nout]
         w_parameters = self.parameters[self.Nout:]
         return np.concatenate([w_parameters, b_parameters])
-
-    def initialise(self, initialisation, **kwargs):
-        if initialisation == 'zero':
-            self.parameters[:] = 0
-        elif initialisation == 'randn':
-            self.parameters[:] = np.random.randn(self.num_parameters)
-        elif initialisation == 'value':
-            self.parameters[:] = kwargs['value']
 
     def apply(self, x):
         z = self.w@x + self.b
@@ -238,9 +286,6 @@ class SequentialNetwork:
 
     def __init__(self):
         self.layers = []
-
-    def add_layer(self, name, *args, **kwargs):
-        self.layers.append(construct_layer(name, *args, **kwargs))
 
     @property
     def num_parameters(self):
@@ -284,10 +329,6 @@ class SequentialNetwork:
 
     def join_parameters(self, p_list):
         return np.concatenate(p_list)
-
-    def initialise(self, initialisation):
-        for layer in self.layers:
-            layer.initialise(initialisation)
 
     def apply(self, x):
         for layer in self.layers:
@@ -334,18 +375,19 @@ class SequentialNetwork:
         dx = self.apply_adjoint_x(dy)
         return (dp, dx)
 
-def fromfile(filename):
-    with open(filename, 'r') as f:
-        net_name = f.readline().strip()
-        if net_name == 'sequential':
-            network = SequentialNetwork()
-            num_layers = int(f.readline().strip())
-            for i in range(num_layers):
-                layer = layer_fromfile(f)
-                network.layers.append(layer)
-            return network
-        else:
-            print('unknown network type:', net_name)
+def fromfile(filename_txt, filename_bin):
+    with open(filename_txt, 'r') as f_txt:
+        with open(filename_bin, 'rb') as f_bin:
+            net_name = f_txt.readline().strip()
+            if net_name == 'sequential':
+                network = SequentialNetwork()
+                num_layers = int(f_txt.readline().strip())
+                for i in range(num_layers):
+                    layer = layer_fromfile(f_txt, f_bin)
+                    network.layers.append(layer)
+                return network
+            else:
+                print('unknown network type:', net_name)
 
 #--------------------------------------------------
 
