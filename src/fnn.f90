@@ -73,7 +73,6 @@ module fnn
     type, extends(Layer) :: LinearLayer
         private
     contains
-        procedure, pass :: read_parameters => linear_read_parameters
         procedure, pass :: apply_forward => linear_apply_forward
         procedure, pass :: apply_tangent_linear => linear_apply_tangent_linear
         procedure, pass :: apply_adjoint => linear_apply_adjoint
@@ -83,7 +82,6 @@ module fnn
     type, extends(Layer) :: NormalisationLayer
         private
     contains
-        procedure, pass :: read_parameters => normalisation_read_parameters
         procedure, pass :: apply_forward => normalisation_apply_forward
         procedure, pass :: apply_tangent_linear => normalisation_apply_tangent_linear
         procedure, pass :: apply_adjoint => normalisation_apply_adjoint
@@ -93,7 +91,6 @@ module fnn
     type, extends(Layer) :: ActivationLayer
         private
     contains
-        procedure, pass :: read_parameters => activation_read_parameters
         procedure, pass :: apply_tangent_linear => activation_apply_tangent_linear
         procedure, pass :: apply_adjoint => activation_apply_adjoint
     end type ActivationLayer
@@ -196,7 +193,12 @@ contains
     subroutine layer_read_parameters(self, fileunit)
         class(Layer), intent(inout) :: self
         integer(ik), intent(in) :: fileunit
-        print *, 'WARNING: using non-implemented method Layer::read_parameters()'
+        real(r0), allocatable :: the_parameters(:)
+        ! read in r0 precision
+        allocate(the_parameters(size(self % parameters)))
+        read(fileunit) the_parameters
+        ! cast to rk precision
+        self % parameters = the_parameters
     end subroutine layer_read_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -361,18 +363,6 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class LinearLayer
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine linear_read_parameters(self, fileunit)
-        class(LinearLayer), intent(inout) :: self
-        integer(ik), intent(in) :: fileunit
-        real(r0), allocatable :: the_parameters(:)
-        ! read in r0 precision
-        allocate(the_parameters(size(self % parameters)))
-        read(fileunit) the_parameters
-        ! cast to rk precision
-        self % parameters = the_parameters
-    end subroutine linear_read_parameters
-    
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine linear_apply_forward(self, train, member, x, y)
         class(LinearLayer), intent(inout) :: self
         logical, intent(in) :: train
@@ -428,18 +418,6 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class NormalisationLayer
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine normalisation_read_parameters(self, fileunit)
-        class(NormalisationLayer), intent(inout) :: self
-        integer(ik), intent(in) :: fileunit
-        real(r0), allocatable :: the_parameters(:)
-        ! read in r0 precision
-        allocate(the_parameters(size(self % parameters)))
-        read(fileunit) the_parameters
-        ! cast to rk precision
-        self % parameters = the_parameters
-    end subroutine normalisation_read_parameters
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine normalisation_apply_forward(self, train, member, x, y)
         class(NormalisationLayer), intent(inout) :: self
         logical, intent(in) :: train
@@ -481,13 +459,6 @@ contains
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class ActivationLayer
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine activation_read_parameters(self, fileunit)
-        class(ActivationLayer), intent(inout) :: self
-        integer(ik), intent(in) :: fileunit
-        ! nothing to read in general
-    end subroutine activation_read_parameters
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine activation_apply_tangent_linear(self, member, dp, dx, dy)
         class(ActivationLayer), intent(inout) :: self
