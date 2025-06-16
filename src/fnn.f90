@@ -80,6 +80,16 @@ module fnn
     end type LinearLayer
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type, extends(Layer) :: NormalisationLayer
+        private
+    contains
+        procedure, pass :: read_parameters => normalisation_read_parameters
+        procedure, pass :: apply_forward => normalisation_apply_forward
+        procedure, pass :: apply_tangent_linear => normalisation_apply_tangent_linear
+        procedure, pass :: apply_adjoint => normalisation_apply_adjoint
+    end type NormalisationLayer
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type, extends(Layer) :: ActivationLayer
         private
     contains
@@ -388,11 +398,13 @@ contains
             reshape(self % parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
             [self % output_size, self % input_size]),&
             dx)
-        dy = dy + matmul(&
-            reshape(dp(self % output_size+1:self % output_size*(self % input_size+1)),&
-            [self % output_size, self % input_size]),&
-            self % forward_input(:, member))
-        dy = dy + dp(1:self % output_size)
+        if ( self % num_parameters > 0 ) then
+            dy = dy + matmul(&
+                reshape(dp(self % output_size+1:self % output_size*(self % input_size+1)),&
+                [self % output_size, self % input_size]),&
+                self % forward_input(:, member))
+            dy = dy + dp(1:self % output_size)
+        end if
     end subroutine linear_apply_tangent_linear
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -402,14 +414,70 @@ contains
         real(rk), intent(inout) :: dy(:)
         real(rk), intent(out) :: dp(:)
         real(rk), intent(out) :: dx(:)
-        dp(1:self % output_size) = dy
-        dp(self % output_size+1:self % output_size*(self % input_size+1)) = reshape(matmul(&
-            reshape(dp(1:self % output_size), [self % output_size, 1]),&
-            reshape(self % forward_input(:, member), [1, self % input_size])),&
-            [self % output_size*self % input_size])
+        if ( self % num_parameters > 0 ) then
+            dp(1:self % output_size) = dy
+            dp(self % output_size+1:self % output_size*(self % input_size+1)) = reshape(matmul(&
+                reshape(dp(1:self % output_size), [self % output_size, 1]),&
+                reshape(self % forward_input(:, member), [1, self % input_size])),&
+                [self % output_size*self % input_size])
+        end if
         dx = matmul(transpose(reshape(self % parameters(self % output_size+1:self % output_size*(self % input_size+1)),&
-            [self % output_size, self % input_size])), dp(1:self % output_size))
+            [self % output_size, self % input_size])), dy)
     end subroutine linear_apply_adjoint
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! implementation of class NormalisationLayer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine normalisation_read_parameters(self, fileunit)
+        class(NormalisationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: fileunit
+        real(r0), allocatable :: the_parameters(:)
+        ! read in r0 precision
+        allocate(the_parameters(size(self % parameters)))
+        read(fileunit) the_parameters
+        ! cast to rk precision
+        self % parameters = the_parameters
+    end subroutine normalisation_read_parameters
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine normalisation_apply_forward(self, train, member, x, y)
+        class(NormalisationLayer), intent(inout) :: self
+        logical, intent(in) :: train
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        self % forward_input(:, member) = x
+        y = self % parameters(1:self % input_size) * x&
+            + self % parameters(self % input_size+1:2*self % input_size)
+    end subroutine normalisation_apply_forward
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine normalisation_apply_tangent_linear(self, member, dp, dx, dy)
+        class(NormalisationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: dp(:)
+        real(rk), intent(in) :: dx(:)
+        real(rk), intent(out) :: dy(:)
+        dy = self % parameters(1:self % input_size) * dx
+        if ( self % num_parameters > 0 ) then
+             dy = dy + dp(1:self % input_size) * self % forward_input(:, member)&
+                  + dp(self % input_size+1:2*self % input_size)
+        end if
+    end subroutine normalisation_apply_tangent_linear
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine normalisation_apply_adjoint(self, member, dy, dp, dx)
+        class(NormalisationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(inout) :: dy(:)
+        real(rk), intent(out) :: dp(:)
+        real(rk), intent(out) :: dx(:)
+        dx = self % parameters(1:self % input_size) * dy
+        if ( self % num_parameters > 0 ) then
+            dp(1:self % input_size) = self % forward_input(:, member) * dy
+            dp(self % input_size+1:2*self % input_size) = dy
+        end if
+    end subroutine normalisation_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class ActivationLayer
@@ -493,6 +561,12 @@ contains
             case('frozen_linear')
                 allocate(LinearLayer::self % layer)
                 self % layer = linear_layer_fromfile(batch_size, fileunit, .true.)
+            case('normalisation')
+                allocate(NormalisationLayer::self % layer)
+                self % layer = normalisation_layer_fromfile(batch_size, fileunit, .false.)
+            case('frozen_normalisation')
+                allocate(NormalisationLayer::self % layer)
+                self % layer = normalisation_layer_fromfile(batch_size, fileunit, .true.)
             case('relu_activation')
                 allocate(ReluActivationLayer::self % layer)
                 self % layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -531,6 +605,12 @@ contains
                 case('frozen_linear')
                     allocate(LinearLayer::self % list_layers(i) % this_layer)
                     self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit, .true.)
+                case('normalisation')
+                    allocate(NormalisationLayer::self % list_layers(i) % this_layer)
+                    self % list_layers(i) % this_layer = normalisation_layer_fromfile(batch_size, fileunit, .false.)
+                case('frozen_normalisation')
+                    allocate(NormalisationLayer::self % list_layers(i) % this_layer)
+                    self % list_layers(i) % this_layer = normalisation_layer_fromfile(batch_size, fileunit, .true.)
                 case('relu_activation')
                     allocate(ReluActivationLayer::self % list_layers(i) % this_layer)
                     self % list_layers(i) % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -583,6 +663,28 @@ contains
             self % num_parameters = 0
         end if
     end function linear_layer_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(NormalisationLayer) function normalisation_layer_fromfile(batch_size, fileunit, frozen) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        logical, intent(in) :: frozen
+        read(fileunit, *) self % input_size
+        self % output_size = self % input_size
+        self % batch_size = batch_size
+        self % num_parameters = 2 * self % input_size
+        allocate(self % parameters(self % num_parameters))
+        allocate(self % forward_input(self % input_size, self % batch_size))
+        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
+        allocate(self % adjoint_input(self % output_size, self % batch_size))
+        self % parameters = 0
+        self % forward_input = 0
+        self % tangent_linear_input = 0
+        self % adjoint_input = 0
+        if ( frozen ) then
+            self % num_parameters = 0
+        end if
+    end function normalisation_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(ActivationLayer) function activation_layer_fromfile(batch_size, fileunit) result (self)
