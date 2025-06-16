@@ -489,7 +489,10 @@ contains
         select case(trim(layer_name)) ! loop over all layers here
             case('linear')
                 allocate(LinearLayer::self % layer)
-                self % layer = linear_layer_fromfile(batch_size, fileunit)
+                self % layer = linear_layer_fromfile(batch_size, fileunit, .false.)
+            case('frozen_linear')
+                allocate(LinearLayer::self % layer)
+                self % layer = linear_layer_fromfile(batch_size, fileunit, .true.)
             case('relu_activation')
                 allocate(ReluActivationLayer::self % layer)
                 self % layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -524,7 +527,10 @@ contains
             select case(trim(layer_name)) ! loop over all layers here
                 case('linear')
                     allocate(LinearLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit)
+                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit, .false.)
+                case('frozen_linear')
+                    allocate(LinearLayer::self % list_layers(i) % this_layer)
+                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit, .true.)
                 case('relu_activation')
                     allocate(ReluActivationLayer::self % list_layers(i) % this_layer)
                     self % list_layers(i) % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -557,9 +563,10 @@ contains
     end function sequential_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    type(LinearLayer) function linear_layer_fromfile(batch_size, fileunit) result (self)
+    type(LinearLayer) function linear_layer_fromfile(batch_size, fileunit, frozen) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: fileunit
+        logical, intent(in) :: frozen
         read(fileunit, *) self % input_size
         read(fileunit, *) self % output_size
         self % batch_size = batch_size
@@ -572,6 +579,9 @@ contains
         self % forward_input = 0
         self % tangent_linear_input = 0
         self % adjoint_input = 0
+        if ( frozen ) then
+            self % num_parameters = 0
+        end if
     end function linear_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
