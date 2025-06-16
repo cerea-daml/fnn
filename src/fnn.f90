@@ -30,29 +30,30 @@ module fnn
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type :: LayerContainer
+        private
         class(Layer), allocatable :: this_layer
     end type
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type :: Layer
         private
-        integer(ik), public :: input_size
-        integer(ik), public :: output_size
-        integer(ik), public :: batch_size
-        integer(ik), public :: num_parameters
-        real(rk), allocatable, public :: parameters(:)
-        real(rk), allocatable, public :: forward_input(:, :)
-        real(rk), allocatable, public :: tangent_linear_input(:, :)
-        real(rk), allocatable, public :: adjoint_input(:, :)
+        integer(ik) :: input_size
+        integer(ik) :: output_size
+        integer(ik) :: batch_size
+        integer(ik) :: num_parameters
+        real(rk), allocatable :: parameters(:)
+        real(rk), allocatable :: forward_input(:, :)
+        real(rk), allocatable :: tangent_linear_input(:, :)
+        real(rk), allocatable :: adjoint_input(:, :)
     contains
-        procedure, pass, public :: get_num_parameters => layer_get_num_parameters
-        procedure, pass, public :: read_parameters => layer_read_parameters
-        procedure, pass, public :: set_parameters => layer_set_parameters
-        procedure, pass, public :: get_parameters => layer_get_parameters
-        procedure, pass, public :: tofile => layer_tofile
-        procedure, pass, public :: apply_forward => layer_apply_forward
-        procedure, pass, public :: apply_tangent_linear => layer_apply_tangent_linear
-        procedure, pass, public :: apply_adjoint => layer_apply_adjoint
+        procedure, pass :: get_num_parameters => layer_get_num_parameters
+        procedure, pass :: read_parameters => layer_read_parameters
+        procedure, pass :: set_parameters => layer_set_parameters
+        procedure, pass :: get_parameters => layer_get_parameters
+        procedure, pass :: tofile => layer_tofile
+        procedure, pass :: apply_forward => layer_apply_forward
+        procedure, pass :: apply_tangent_linear => layer_apply_tangent_linear
+        procedure, pass :: apply_adjoint => layer_apply_adjoint
     end type Layer
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -63,22 +64,22 @@ module fnn
         integer(ik), allocatable :: ip_start(:)
         integer(ik), allocatable :: ip_end(:)
     contains
-        procedure, pass, public :: read_parameters => sequential_read_parameters
-        procedure, pass, public :: tofile => sequential_tofile
-        procedure, pass, public :: apply_forward => sequential_apply_forward
-        procedure, pass, public :: apply_tangent_linear => sequential_apply_tangent_linear
-        procedure, pass, public :: apply_adjoint => sequential_apply_adjoint
+        procedure, pass :: read_parameters => sequential_read_parameters
+        procedure, pass :: tofile => sequential_tofile
+        procedure, pass :: apply_forward => sequential_apply_forward
+        procedure, pass :: apply_tangent_linear => sequential_apply_tangent_linear
+        procedure, pass :: apply_adjoint => sequential_apply_adjoint
     end type SequentialLayer
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type, extends(Layer) :: LinearLayer
         private
     contains
-        procedure, pass, public :: read_parameters => linear_read_parameters
-        procedure, pass, public :: tofile => linear_tofile
-        procedure, pass, public :: apply_forward => linear_apply_forward
-        procedure, pass, public :: apply_tangent_linear => linear_apply_tangent_linear
-        procedure, pass, public :: apply_adjoint => linear_apply_adjoint
+        procedure, pass :: read_parameters => linear_read_parameters
+        procedure, pass :: tofile => linear_tofile
+        procedure, pass :: apply_forward => linear_apply_forward
+        procedure, pass :: apply_tangent_linear => linear_apply_tangent_linear
+        procedure, pass :: apply_adjoint => linear_apply_adjoint
     end type LinearLayer
 
 contains
