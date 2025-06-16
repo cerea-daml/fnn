@@ -124,6 +124,19 @@ contains
     end subroutine rand2d
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    logical function is_frozen(fileunit)
+        integer(ik), intent(in) :: fileunit
+        character(len=100) :: frozen_text
+        read(fileunit, fmt=*) frozen_text
+        select case(trim(frozen_text))
+            case('frozen')
+                is_frozen = .true.
+            case default
+                is_frozen = .false.
+            end select
+    end function is_frozen
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class NeuralNetwork
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) function nn_get_input_size(self) result(input_size)
@@ -528,16 +541,10 @@ contains
         select case(trim(layer_name)) ! loop over all layers here
             case('linear')
                 allocate(LinearLayer::self % layer)
-                self % layer = linear_layer_fromfile(batch_size, fileunit, .false.)
-            case('frozen_linear')
-                allocate(LinearLayer::self % layer)
-                self % layer = linear_layer_fromfile(batch_size, fileunit, .true.)
+                self % layer = linear_layer_fromfile(batch_size, fileunit)
             case('normalisation')
                 allocate(NormalisationLayer::self % layer)
-                self % layer = normalisation_layer_fromfile(batch_size, fileunit, .false.)
-            case('frozen_normalisation')
-                allocate(NormalisationLayer::self % layer)
-                self % layer = normalisation_layer_fromfile(batch_size, fileunit, .true.)
+                self % layer = normalisation_layer_fromfile(batch_size, fileunit)
             case('relu_activation')
                 allocate(ReluActivationLayer::self % layer)
                 self % layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -554,6 +561,30 @@ contains
         call self % layer % read_parameters(fileunit)
         close(fileunit)
     end function nn_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(Layer) function construct_layer(input_size, output_size, batch_size, num_parameters, frozen) result (self)
+        integer(ik), intent(in) :: input_size
+        integer(ik), intent(in) :: output_size
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: num_parameters
+        logical, intent(in) :: frozen
+        self % input_size = input_size
+        self % output_size = output_size
+        self % batch_size = batch_size
+        self % num_parameters = num_parameters
+        allocate(self % parameters(self % num_parameters))
+        allocate(self % forward_input(self % input_size, self % batch_size))
+        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
+        allocate(self % adjoint_input(self % output_size, self % batch_size))
+        self % parameters = 0
+        self % forward_input = 0
+        self % tangent_linear_input = 0
+        self % adjoint_input = 0
+        if ( frozen ) then
+            self % num_parameters = 0
+        end if
+    end function construct_layer
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(SequentialLayer) recursive function sequential_layer_fromfile(batch_size, fileunit) result (self)
@@ -572,16 +603,10 @@ contains
             select case(trim(layer_name)) ! loop over all layers here
                 case('linear')
                     allocate(LinearLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit, .false.)
-                case('frozen_linear')
-                    allocate(LinearLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit, .true.)
+                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit)
                 case('normalisation')
                     allocate(NormalisationLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = normalisation_layer_fromfile(batch_size, fileunit, .false.)
-                case('frozen_normalisation')
-                    allocate(NormalisationLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = normalisation_layer_fromfile(batch_size, fileunit, .true.)
+                    self % list_layers(i) % this_layer = normalisation_layer_fromfile(batch_size, fileunit)
                 case('relu_activation')
                     allocate(ReluActivationLayer::self % list_layers(i) % this_layer)
                     self % list_layers(i) % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -596,83 +621,54 @@ contains
             ip = ip + self % list_layers(i) % this_layer % num_parameters
             self % ip_end(i) = ip
         end do
-        self % input_size = self % list_layers(1) % this_layer % input_size
-        self % output_size = self % list_layers(self % num_layers) % this_layer % output_size
-        self % batch_size = batch_size
+        self % Layer = construct_layer(&
+            self % list_layers(1) % this_layer % input_size,&
+            self % list_layers(self % num_layers) % this_layer % output_size,&
+            batch_size,&
+            0,&
+            .false.&
+        )
         self % num_parameters = ip
-        allocate(self % parameters(0))
         ! Q: should we use self % list_layers(1) % this_layer % forward_input as self % forward_input ???
-        allocate(self % forward_input(self % input_size, self % batch_size))
         ! Q: should we use self % list_layers(1) % this_layer % tangent_linear_input as self % tangent_linear_input ???
-        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
         ! Q: should we use self % list_layers(self % num_layers) % this_layer % adjoint_input as self % adjoint_input ???
-        allocate(self % adjoint_input(self % output_size, self % batch_size))
-        self % parameters = 0
-        self % forward_input = 0
-        self % tangent_linear_input = 0
-        self % adjoint_input = 0
     end function sequential_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    type(LinearLayer) function linear_layer_fromfile(batch_size, fileunit, frozen) result (self)
+    type(LinearLayer) function linear_layer_fromfile(batch_size, fileunit) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: fileunit
-        logical, intent(in) :: frozen
-        read(fileunit, *) self % input_size
-        read(fileunit, *) self % output_size
-        self % batch_size = batch_size
-        self % num_parameters = (self % input_size+1) * self % output_size
-        allocate(self % parameters(self % num_parameters))
-        allocate(self % forward_input(self % input_size, self % batch_size))
-        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
-        allocate(self % adjoint_input(self % output_size, self % batch_size))
-        self % parameters = 0
-        self % forward_input = 0
-        self % tangent_linear_input = 0
-        self % adjoint_input = 0
-        if ( frozen ) then
-            self % num_parameters = 0
-        end if
+        logical :: frozen
+        integer(ik) :: input_size
+        integer(ik) :: output_size
+        integer(ik) :: num_parameters
+        frozen = is_frozen(fileunit)
+        read(fileunit, *) input_size
+        read(fileunit, *) output_size
+        num_parameters = (self % input_size+1) * self % output_size
+        self % Layer = construct_layer(input_size, output_size, batch_size, num_parameters, frozen)
     end function linear_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    type(NormalisationLayer) function normalisation_layer_fromfile(batch_size, fileunit, frozen) result (self)
+    type(NormalisationLayer) function normalisation_layer_fromfile(batch_size, fileunit) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: fileunit
-        logical, intent(in) :: frozen
-        read(fileunit, *) self % input_size
-        self % output_size = self % input_size
-        self % batch_size = batch_size
-        self % num_parameters = 2 * self % input_size
-        allocate(self % parameters(self % num_parameters))
-        allocate(self % forward_input(self % input_size, self % batch_size))
-        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
-        allocate(self % adjoint_input(self % output_size, self % batch_size))
-        self % parameters = 0
-        self % forward_input = 0
-        self % tangent_linear_input = 0
-        self % adjoint_input = 0
-        if ( frozen ) then
-            self % num_parameters = 0
-        end if
+        logical :: frozen
+        integer(ik) :: input_size
+        integer(ik) :: num_parameters
+        frozen = is_frozen(fileunit)
+        read(fileunit, *) input_size
+        num_parameters = 2 * self % input_size
+        self % Layer = construct_layer(input_size, input_size, batch_size, num_parameters, frozen)
     end function normalisation_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(ActivationLayer) function activation_layer_fromfile(batch_size, fileunit) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: fileunit
-        read(fileunit, *) self % input_size
-        self % output_size = self % input_size
-        self % batch_size = batch_size
-        self % num_parameters = 0
-        allocate(self % parameters(0))
-        allocate(self % forward_input(self % input_size, self % batch_size))
-        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
-        allocate(self % adjoint_input(self % output_size, self % batch_size))
-        self % parameters = 0
-        self % forward_input = 0
-        self % tangent_linear_input = 0
-        self % adjoint_input = 0
+        integer(ik) :: input_size
+        read(fileunit, *) input_size
+        self % Layer = construct_layer(input_size, input_size, batch_size, 0, .false.)
     end function activation_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
