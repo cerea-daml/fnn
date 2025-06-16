@@ -79,6 +79,29 @@ module fnn
         procedure, pass :: apply_adjoint => linear_apply_adjoint
     end type LinearLayer
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type, extends(Layer) :: ActivationLayer
+        private
+    contains
+        procedure, pass :: read_parameters => activation_read_parameters
+        procedure, pass :: apply_tangent_linear => activation_apply_tangent_linear
+        procedure, pass :: apply_adjoint => activation_apply_adjoint
+    end type ActivationLayer
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type, extends(ActivationLayer) :: ReluActivationLayer
+        private
+    contains
+        procedure, pass :: apply_forward => relu_activation_apply_forward
+    end type ReluActivationLayer
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type, extends(ActivationLayer) :: TanhActivationLayer
+        private
+    contains
+        procedure, pass :: apply_forward => tanh_activation_apply_forward
+    end type TanhActivationLayer
+
 contains
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -389,6 +412,69 @@ contains
     end subroutine linear_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! implementation of class ActivationLayer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine activation_read_parameters(self, fileunit)
+        class(ActivationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: fileunit
+        ! nothing to read in general
+    end subroutine activation_read_parameters
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine activation_apply_tangent_linear(self, member, dp, dx, dy)
+        class(ActivationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: dp(:)
+        real(rk), intent(in) :: dx(:)
+        real(rk), intent(out) :: dy(:)
+        dy = self % forward_input(:, member) * dx
+    end subroutine activation_apply_tangent_linear
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine activation_apply_adjoint(self, member, dy, dp, dx)
+        class(ActivationLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(inout) :: dy(:)
+        real(rk), intent(out) :: dp(:)
+        real(rk), intent(out) :: dx(:)
+        dx = self % forward_input(:, member) * dy
+    end subroutine activation_apply_adjoint
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! implementation of class ReluActivationLayer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine relu_activation_apply_forward(self, train, member, x, y)
+        class(ReluActivationLayer), intent(inout) :: self
+        logical, intent(in) :: train
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        integer(ik) :: i
+        do i = 1, size(y)
+            if (x(i) > 0) then
+                y(i) = x(i)
+                self % forward_input(i, member) = 1
+            else
+                y(i) = 0
+                self % forward_input(i, member) = 0
+            end if
+        end do
+    end subroutine relu_activation_apply_forward
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! implementation of class TanhActivationLayer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine tanh_activation_apply_forward(self, train, member, x, y)
+        class(TanhActivationLayer), intent(inout) :: self
+        logical, intent(in) :: train
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        y = tanh(x)
+        self % forward_input(:, member) = 1 - y**2
+    end subroutine tanh_activation_apply_forward
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! constructors
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(NeuralNetwork) function nn_fromfile(batch_size, filename_txt, filename_bin) result(self)
@@ -400,10 +486,16 @@ contains
         ! read architecture
         open(newunit=fileunit, file=filename_txt, action='read')
         read(fileunit, fmt=*) layer_name
-        select case(trim(layer_name))
+        select case(trim(layer_name)) ! loop over all layers here
             case('linear')
-                allocate(LinearLayer:: self % layer)
+                allocate(LinearLayer::self % layer)
                 self % layer = linear_layer_fromfile(batch_size, fileunit)
+            case('relu_activation')
+                allocate(ReluActivationLayer::self % layer)
+                self % layer = relu_activation_layer_fromfile(batch_size, fileunit)
+            case('tanh_activation')
+                allocate(TanhActivationLayer::self % layer)
+                self % layer = tanh_activation_layer_fromfile(batch_size, fileunit)
             case default
                 allocate(SequentialLayer::self % layer)
                 self % layer = sequential_layer_fromfile(batch_size, fileunit)
@@ -429,10 +521,16 @@ contains
         ip = 0
         do i = 1, self % num_layers
             read(fileunit, *) layer_name
-            select case(trim(layer_name))
+            select case(trim(layer_name)) ! loop over all layers here
                 case('linear')
                     allocate(LinearLayer::self % list_layers(i) % this_layer)
                     self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit)
+                case('relu_activation')
+                    allocate(ReluActivationLayer::self % list_layers(i) % this_layer)
+                    self % list_layers(i) % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
+                case('tanh_activation')
+                    allocate(TanhActivationLayer::self % list_layers(i) % this_layer)
+                    self % list_layers(i) % this_layer = tanh_activation_layer_fromfile(batch_size, fileunit)
                 case default
                     allocate(SequentialLayer::self % list_layers(i) % this_layer)
                     self % list_layers(i) % this_layer = sequential_layer_fromfile(batch_size, fileunit)
@@ -475,5 +573,37 @@ contains
         self % tangent_linear_input = 0
         self % adjoint_input = 0
     end function linear_layer_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(ActivationLayer) function activation_layer_fromfile(batch_size, fileunit) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        read(fileunit, *) self % input_size
+        self % output_size = self % input_size
+        self % batch_size = batch_size
+        self % num_parameters = 0
+        allocate(self % parameters(0))
+        allocate(self % forward_input(self % input_size, self % batch_size))
+        allocate(self % tangent_linear_input(self % input_size, self % batch_size))
+        allocate(self % adjoint_input(self % output_size, self % batch_size))
+        self % parameters = 0
+        self % forward_input = 0
+        self % tangent_linear_input = 0
+        self % adjoint_input = 0
+    end function activation_layer_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(ReluActivationLayer) function relu_activation_layer_fromfile(batch_size, fileunit) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        self % ActivationLayer = activation_layer_fromfile(batch_size, fileunit)
+    end function relu_activation_layer_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(TanhActivationLayer) function tanh_activation_layer_fromfile(batch_size, fileunit) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        self % ActivationLayer = activation_layer_fromfile(batch_size, fileunit)
+    end function tanh_activation_layer_fromfile
 
 end module fnn
