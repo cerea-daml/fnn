@@ -22,7 +22,6 @@ module fnn
         procedure, public, pass :: get_num_parameters => nn_get_num_parameters
         procedure, public, pass :: set_parameters => nn_set_parameters
         procedure, public, pass :: get_parameters => nn_get_parameters
-        procedure, public, pass :: tofile => nn_tofile
         procedure, public, pass :: apply_forward => nn_apply_forward
         procedure, public, pass :: apply_tangent_linear => nn_apply_tangent_linear
         procedure, public, pass :: apply_adjoint => nn_apply_adjoint
@@ -46,11 +45,9 @@ module fnn
         real(rk), allocatable :: tangent_linear_input(:, :)
         real(rk), allocatable :: adjoint_input(:, :)
     contains
-        procedure, pass :: get_num_parameters => layer_get_num_parameters
         procedure, pass :: read_parameters => layer_read_parameters
         procedure, pass :: set_parameters => layer_set_parameters
         procedure, pass :: get_parameters => layer_get_parameters
-        procedure, pass :: tofile => layer_tofile
         procedure, pass :: apply_forward => layer_apply_forward
         procedure, pass :: apply_tangent_linear => layer_apply_tangent_linear
         procedure, pass :: apply_adjoint => layer_apply_adjoint
@@ -65,7 +62,8 @@ module fnn
         integer(ik), allocatable :: ip_end(:)
     contains
         procedure, pass :: read_parameters => sequential_read_parameters
-        procedure, pass :: tofile => sequential_tofile
+        procedure, pass :: set_parameters => sequential_set_parameters
+        procedure, pass :: get_parameters => sequential_get_parameters
         procedure, pass :: apply_forward => sequential_apply_forward
         procedure, pass :: apply_tangent_linear => sequential_apply_tangent_linear
         procedure, pass :: apply_adjoint => sequential_apply_adjoint
@@ -76,7 +74,6 @@ module fnn
         private
     contains
         procedure, pass :: read_parameters => linear_read_parameters
-        procedure, pass :: tofile => linear_tofile
         procedure, pass :: apply_forward => linear_apply_forward
         procedure, pass :: apply_tangent_linear => linear_apply_tangent_linear
         procedure, pass :: apply_adjoint => linear_apply_adjoint
@@ -131,16 +128,6 @@ contains
     end subroutine nn_get_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine nn_tofile(self, filename)
-        class(NeuralNetwork), intent(in) :: self
-        character(len=*), intent(in) :: filename
-        integer(ik) :: fileunit
-        open(newunit=fileunit, file=filename, action='write')
-        call self % layer % tofile(fileunit)
-        close(fileunit)
-    end subroutine nn_tofile
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine nn_apply_forward(self, train, member, x, y)
         class(NeuralNetwork), intent(inout) :: self
         logical, intent(in) :: train
@@ -173,12 +160,6 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class Layer
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik) function layer_get_num_parameters(self) result(num_parameters)
-        class(Layer), intent(in) :: self
-        num_parameters = self % num_parameters
-    end function layer_get_num_parameters
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine layer_read_parameters(self, fileunit)
         class(Layer), intent(inout) :: self
         integer(ik), intent(in) :: fileunit
@@ -198,13 +179,6 @@ contains
         real(rk), intent(out) :: parameters(:)
         parameters = self % parameters
     end subroutine layer_get_parameters
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine layer_tofile(self, fileunit)
-        class(Layer), intent(in) :: self
-        integer(ik), intent(in) :: fileunit
-        print *, 'WARNING: using non-implemented method Layer::tofile()'
-    end subroutine layer_tofile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine layer_apply_forward(self, train, member, x, y)
@@ -249,16 +223,26 @@ contains
     end subroutine sequential_read_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine sequential_tofile(self, fileunit)
-        class(SequentialLayer), intent(in) :: self
-        integer(ik), intent(in) :: fileunit
+    subroutine sequential_set_parameters(self, new_parameters)
+        class(SequentialLayer), intent(inout) :: self
+        real(rk), intent(in) :: new_parameters(:)
         integer(ik) :: i
-        write(fileunit, fmt=*) 'sequential'
-        write(fileunit, fmt=*) self % num_layers
         do i = 1, self % num_layers
-            call self % list_layers(i) % this_layer % tofile(fileunit)
+            call self % list_layers(i) % this_layer % set_parameters(&
+                new_parameters(self % ip_start(i):self % ip_end(i)))
         end do
-    end subroutine sequential_tofile
+    end subroutine sequential_set_parameters
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine sequential_get_parameters(self, parameters)
+        class(SequentialLayer), intent(in) :: self
+        real(rk), intent(out) :: parameters(:)
+        integer(ik) :: i
+        do i = 1, self % num_layers
+            call self % list_layers(i) % this_layer % get_parameters(&
+                parameters(self % ip_start(i):self % ip_end(i)))
+        end do
+    end subroutine sequential_get_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine sequential_apply_forward(self, train, member, x, y)
@@ -354,15 +338,6 @@ contains
         ! cast to rk precision
         self % parameters = the_parameters
     end subroutine linear_read_parameters
-    
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine linear_tofile(self, fileunit)
-        class(LinearLayer), intent(in) :: self
-        integer(ik), intent(in) :: fileunit
-        write(fileunit, fmt=*) 'linear'
-        write(fileunit, fmt=*) self % input_size
-        write(fileunit, fmt=*) self % output_size
-    end subroutine linear_tofile
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine linear_apply_forward(self, train, member, x, y)
@@ -463,7 +438,7 @@ contains
                     self % list_layers(i) % this_layer = sequential_layer_fromfile(batch_size, fileunit)
             end select
             self % ip_start(i) = ip + 1
-            ip = ip + self % list_layers(i) % this_layer % get_num_parameters()
+            ip = ip + self % list_layers(i) % this_layer % num_parameters
             self % ip_end(i) = ip
         end do
         self % input_size = self % list_layers(1) % this_layer % input_size
