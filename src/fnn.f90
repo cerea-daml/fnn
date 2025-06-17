@@ -79,6 +79,19 @@ module fnn
     end type LinearLayer
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type, extends(Layer) :: SkipConnectionLayer
+        private
+        type(LayerContainer), allocatable :: layer_container
+    contains
+        procedure, pass :: read_parameters => skip_connection_read_parameters
+        procedure, pass :: set_parameters => skip_connection_set_parameters
+        procedure, pass :: get_parameters => skip_connection_get_parameters
+        procedure, pass :: apply_forward => skip_connection_apply_forward
+        procedure, pass :: apply_tangent_linear => skip_connection_apply_tangent_linear
+        procedure, pass :: apply_adjoint => skip_connection_apply_adjoint
+    end type SkipConnectionLayer
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type, extends(Layer) :: NormalisationLayer
         private
     contains
@@ -429,6 +442,66 @@ contains
     end subroutine linear_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! implementation of class SkipConnectionLayer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine skip_connection_read_parameters(self, fileunit)
+        class(SkipConnectionLayer), intent(inout) :: self
+        integer(ik), intent(in) :: fileunit
+        call self % layer_container % this_layer % read_parameters(fileunit)
+    end subroutine skip_connection_read_parameters
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine skip_connection_set_parameters(self, new_parameters)
+        class(SkipConnectionLayer), intent(inout) :: self
+        real(rk), intent(in) :: new_parameters(:)
+        call self % layer_container % this_layer % set_parameters(new_parameters)
+    end subroutine skip_connection_set_parameters
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine skip_connection_get_parameters(self, parameters)
+        class(SkipConnectionLayer), intent(in) :: self
+        real(rk), intent(out) :: parameters(:)
+        call self % layer_container % this_layer % get_parameters(parameters)
+    end subroutine skip_connection_get_parameters
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine skip_connection_apply_forward(self, train, member, x, y)
+        class(SkipConnectionLayer), intent(inout) :: self
+        logical, intent(in) :: train
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        ! this may not be necessary if we use the forward input from the contained layer...
+        self % forward_input(:, member) = x
+        call self % layer_container % this_layer % apply_forward(train, member, x, y)
+        y = y + x
+    end subroutine skip_connection_apply_forward
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! TODO: check the implementation
+    subroutine skip_connection_apply_tangent_linear(self, member, dp, dx, dy)
+        class(SkipConnectionLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: dp(:)
+        real(rk), intent(in) :: dx(:)
+        real(rk), intent(out) :: dy(:)
+        call self % layer_container % this_layer % apply_tangent_linear(member, dp, dx, dy)
+        dy = dy + dx
+    end subroutine skip_connection_apply_tangent_linear
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! TODO: check the implementation
+    subroutine skip_connection_apply_adjoint(self, member, dy, dp, dx)
+        class(SkipConnectionLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(inout) :: dy(:)
+        real(rk), intent(out) :: dp(:)
+        real(rk), intent(out) :: dx(:)
+        call self % layer_container % this_layer % apply_adjoint(member, dy, dp, dx)
+        dx = dx + dy
+    end subroutine skip_connection_apply_adjoint
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class NormalisationLayer
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine normalisation_apply_forward(self, train, member, x, y)
@@ -554,6 +627,9 @@ contains
             case('linear')
                 allocate(LinearLayer::self % this_layer)
                 self % this_layer = linear_layer_fromfile(batch_size, fileunit)
+            case('skip_connection')
+                allocate(SkipConnectionLayer::self % this_layer)
+                self % this_layer = skip_connection_layer_fromfile(batch_size, fileunit)
             case('normalisation')
                 allocate(NormalisationLayer::self % this_layer)
                 self % this_layer = normalisation_layer_fromfile(batch_size, fileunit)
@@ -597,7 +673,6 @@ contains
     type(SequentialLayer) function sequential_layer_fromfile(batch_size, fileunit) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: fileunit
-        character(len=100) :: layer_name
         integer(ik) :: i
         integer(ik) :: ip
         read(fileunit, *) self % num_layers
@@ -638,6 +713,24 @@ contains
         num_parameters = (self % input_size+1) * self % output_size
         self % Layer = construct_layer(input_size, output_size, batch_size, num_parameters, frozen)
     end function linear_layer_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(SkipConnectionLayer) function skip_connection_layer_fromfile(batch_size, fileunit) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        self % layer_container = layer_container_fromfile(batch_size, fileunit)
+        self % Layer = construct_layer(&
+            self % layer_container % this_layer % input_size,&
+            self % layer_container % this_layer % output_size,&
+            batch_size,&
+            0,&
+            .false.&
+        )
+        self % num_parameters = self % layer_container % this_layer % num_parameters
+        ! Q: should we use self % layer_container % this_layer % forward_input as self % forward_input ???
+        ! Q: should we use self % layer_container % this_layer % tangent_linear_input as self % tangent_linear_input ???
+        ! Q: should we use self % layer_container % this_layer % adjoint_input as self % adjoint_input ???
+    end function skip_connection_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(NormalisationLayer) function normalisation_layer_fromfile(batch_size, fileunit) result (self)
