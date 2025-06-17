@@ -2,7 +2,7 @@
 ! TODO:
 ! - correct forward input in non-linear activations
 ! - check if memory allocation is needed for sequential / skip connection layers
-! - add new skip connection layer
+! - check skip connection implementation
 
 module fnn
 
@@ -483,33 +483,33 @@ contains
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
-        ! this may not be necessary if we use the forward input from the contained layer...
-        call self % layer_container % this_layer % apply_forward(train, member, x, y)
-        y = y + x
+        y(1:self % input_size) = x
+        call self % layer_container % this_layer % apply_forward(train, member, x,&
+                y(self % input_size+1:self % output_size))
     end subroutine skip_connection_apply_forward
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! TODO: check the implementation
     subroutine skip_connection_apply_tangent_linear(self, member, dp, dx, dy)
         class(SkipConnectionLayer), intent(inout) :: self
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: dp(:)
         real(rk), intent(in) :: dx(:)
         real(rk), intent(out) :: dy(:)
-        call self % layer_container % this_layer % apply_tangent_linear(member, dp, dx, dy)
-        dy = dy + dx
+        dy(1:self % input_size) = dx
+        call self % layer_container % this_layer % apply_tangent_linear(member, dp, dx,&
+                dy(self % input_size+1:self % output_size))
     end subroutine skip_connection_apply_tangent_linear
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! TODO: check the implementation
     subroutine skip_connection_apply_adjoint(self, member, dy, dp, dx)
         class(SkipConnectionLayer), intent(inout) :: self
         integer(ik), intent(in) :: member
         real(rk), intent(inout) :: dy(:)
         real(rk), intent(out) :: dp(:)
         real(rk), intent(out) :: dx(:)
-        call self % layer_container % this_layer % apply_adjoint(member, dy, dp, dx)
-        dx = dx + dy
+        call self % layer_container % this_layer % apply_adjoint(member,&
+                dy(self % input_size+1:self % output_size), dp, dx)
+        dx = dx + dy(1:self % input_size)
     end subroutine skip_connection_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -773,7 +773,7 @@ contains
         self % layer_container = layer_container_fromfile(batch_size, fileunit)
         self % Layer = construct_layer(&
             self % layer_container % this_layer % input_size,&
-            self % layer_container % this_layer % output_size,&
+            self % layer_container % this_layer % input_size + self % layer_container % this_layer % output_size,&
             batch_size,&
             0,&
             .false.&
