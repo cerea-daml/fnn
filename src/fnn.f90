@@ -101,6 +101,15 @@ module fnn
     end type NormalisationLayer
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type, extends(Layer) :: AppendStaticInputLayer
+        private
+    contains
+        procedure, pass :: apply_forward => append_static_input_apply_forward
+        procedure, pass :: apply_tangent_linear => append_static_input_apply_tangent_linear
+        procedure, pass :: apply_adjoint => append_static_input_apply_adjoint
+    end type AppendStaticInputLayer
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type, extends(Layer) :: ActivationLayer
         private
     contains
@@ -544,6 +553,47 @@ contains
     end subroutine normalisation_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! implementation of class AppendStaticInputLayer
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine append_static_input_apply_forward(self, train, member, x, y)
+        class(AppendStaticInputLayer), intent(inout) :: self
+        logical, intent(in) :: train
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        y(1:self % input_size) = x
+        y(self % input_size+1:self % output_size) = self % parameters
+    end subroutine append_static_input_apply_forward
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine append_static_input_apply_tangent_linear(self, member, dp, dx, dy)
+        class(AppendStaticInputLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(in) :: dp(:)
+        real(rk), intent(in) :: dx(:)
+        real(rk), intent(out) :: dy(:)
+        dy(1:self % input_size) = dx
+        if ( self % num_parameters > 0 ) then
+            dy(self % input_size+1:self % output_size) = dp
+        else
+            dy(self % input_size+1:self % output_size) = 0
+        end if
+    end subroutine append_static_input_apply_tangent_linear
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine append_static_input_apply_adjoint(self, member, dy, dp, dx)
+        class(AppendStaticInputLayer), intent(inout) :: self
+        integer(ik), intent(in) :: member
+        real(rk), intent(inout) :: dy(:)
+        real(rk), intent(out) :: dp(:)
+        real(rk), intent(out) :: dx(:)
+        dx = dy(1:self % input_size)
+        if ( self % num_parameters > 0 ) then
+            dp = dy(self % input_size+1:self % output_size)
+        end if
+    end subroutine append_static_input_apply_adjoint
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! implementation of class ActivationLayer
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine activation_apply_tangent_linear(self, member, dp, dx, dy)
@@ -633,6 +683,9 @@ contains
             case('normalisation')
                 allocate(NormalisationLayer::self % this_layer)
                 self % this_layer = normalisation_layer_fromfile(batch_size, fileunit)
+            case('append_static_input')
+                allocate(AppendStaticInputLayer::self % this_layer)
+                self % this_layer = append_static_input_layer_fromfile(batch_size, fileunit)
             case('relu_activation')
                 allocate(ReluActivationLayer::self % this_layer)
                 self % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
@@ -738,12 +791,23 @@ contains
         integer(ik), intent(in) :: fileunit
         logical :: frozen
         integer(ik) :: input_size
+        frozen = is_frozen(fileunit)
+        read(fileunit, *) input_size
+        self % Layer = construct_layer(input_size, input_size, batch_size, 2 * self % input_size, frozen)
+    end function normalisation_layer_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(AppendStaticInputLayer) function append_static_input_layer_fromfile(batch_size, fileunit) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        logical :: frozen
+        integer(ik) :: input_size
         integer(ik) :: num_parameters
         frozen = is_frozen(fileunit)
         read(fileunit, *) input_size
-        num_parameters = 2 * self % input_size
-        self % Layer = construct_layer(input_size, input_size, batch_size, num_parameters, frozen)
-    end function normalisation_layer_fromfile
+        read(fileunit, *) num_parameters
+        self % Layer = construct_layer(input_size, input_size+num_parameters, batch_size, num_parameters, frozen)
+    end function append_static_input_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(ActivationLayer) function activation_layer_fromfile(batch_size, fileunit) result (self)
