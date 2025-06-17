@@ -1,6 +1,5 @@
 
 ! TODO:
-! - correct forward input in non-linear activations
 ! - check if memory allocation is needed for sequential / skip connection layers
 ! - check skip connection implementation
 
@@ -117,6 +116,7 @@ module fnn
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type, extends(Layer) :: ActivationLayer
         private
+        real(rk), allocatable, public :: x_prime(:, :)
     contains
         procedure, pass :: apply_tangent_linear => activation_apply_tangent_linear
         procedure, pass :: apply_adjoint => activation_apply_adjoint
@@ -604,7 +604,7 @@ contains
         real(rk), intent(in) :: dp(:)
         real(rk), intent(in) :: dx(:)
         real(rk), intent(out) :: dy(:)
-        dy = self % forward_input(:, member) * dx
+        dy = self % x_prime(:, member) * dx
     end subroutine activation_apply_tangent_linear
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -614,7 +614,7 @@ contains
         real(rk), intent(inout) :: dy(:)
         real(rk), intent(out) :: dp(:)
         real(rk), intent(out) :: dx(:)
-        dx = self % forward_input(:, member) * dy
+        dx = self % x_prime(:, member) * dy
     end subroutine activation_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -630,10 +630,10 @@ contains
         do i = 1, size(y)
             if (x(i) > 0) then
                 y(i) = x(i)
-                self % forward_input(i, member) = 1
+                self % x_prime(i, member) = 1
             else
                 y(i) = 0
-                self % forward_input(i, member) = 0
+                self % x_prime(i, member) = 0
             end if
         end do
     end subroutine relu_activation_apply_forward
@@ -648,7 +648,7 @@ contains
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
         y = tanh(x)
-        self % forward_input(:, member) = 1 - y**2
+        self % x_prime(:, member) = 1 - y**2
     end subroutine tanh_activation_apply_forward
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -812,6 +812,7 @@ contains
         integer(ik) :: input_size
         read(fileunit, *) input_size
         self % Layer = construct_layer(input_size, input_size, batch_size, 0, .false.)
+        allocate(self % x_prime(input_size, batch_size))
     end function activation_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
