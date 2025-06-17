@@ -17,3 +17,6 @@ test/test_*_out*
 
 # doc
 html
+
+# pycharm
+.idea
