@@ -1,4 +1,9 @@
 
+! TODO:
+! - correct forward input in non-linear activations
+! - check if memory allocation is needed for sequential / skip connection layers
+! - add new skip connection layer
+
 module fnn
 
     use iso_fortran_env, only: int32, int64, real32, real64, real128
@@ -322,8 +327,6 @@ contains
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
         integer(ik) :: i
-        ! this may not be necessary if we use the forward input from the first layer...
-        self % forward_input(:, member) = x
         if ( self % num_layers == 1 ) then
             call self % list_layers(1) % this_layer % apply_forward(&
                 train, member, x, y)
@@ -481,7 +484,6 @@ contains
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
         ! this may not be necessary if we use the forward input from the contained layer...
-        self % forward_input(:, member) = x
         call self % layer_container % this_layer % apply_forward(train, member, x, y)
         y = y + x
     end subroutine skip_connection_apply_forward
@@ -747,9 +749,6 @@ contains
             .false.&
         )
         self % num_parameters = ip
-        ! Q: should we use self % list_layers(1) % this_layer % forward_input as self % forward_input ???
-        ! Q: should we use self % list_layers(1) % this_layer % tangent_linear_input as self % tangent_linear_input ???
-        ! Q: should we use self % list_layers(self % num_layers) % this_layer % adjoint_input as self % adjoint_input ???
     end function sequential_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -780,9 +779,6 @@ contains
             .false.&
         )
         self % num_parameters = self % layer_container % this_layer % num_parameters
-        ! Q: should we use self % layer_container % this_layer % forward_input as self % forward_input ???
-        ! Q: should we use self % layer_container % this_layer % tangent_linear_input as self % tangent_linear_input ???
-        ! Q: should we use self % layer_container % this_layer % adjoint_input as self % adjoint_input ???
     end function skip_connection_layer_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
