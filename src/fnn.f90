@@ -13,27 +13,6 @@ module fnn
     integer, parameter :: ik = int32
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    type :: NeuralNetwork
-        private
-        class(Layer), allocatable :: layer
-    contains
-        procedure, public, pass :: get_input_size => nn_get_input_size
-        procedure, public, pass :: get_output_size => nn_get_output_size
-        procedure, public, pass :: get_num_parameters => nn_get_num_parameters
-        procedure, public, pass :: set_parameters => nn_set_parameters
-        procedure, public, pass :: get_parameters => nn_get_parameters
-        procedure, public, pass :: apply_forward => nn_apply_forward
-        procedure, public, pass :: apply_tangent_linear => nn_apply_tangent_linear
-        procedure, public, pass :: apply_adjoint => nn_apply_adjoint
-    end type NeuralNetwork
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    type :: LayerContainer
-        private
-        class(Layer), allocatable :: this_layer
-    end type
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type :: Layer
         private
         integer(ik) :: input_size
@@ -54,10 +33,31 @@ module fnn
     end type Layer
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type :: LayerContainer
+        private
+        class(Layer), allocatable :: this_layer
+    end type
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type :: NeuralNetwork
+        private
+        type(LayerContainer) :: layer_container
+    contains
+        procedure, public, pass :: get_input_size => nn_get_input_size
+        procedure, public, pass :: get_output_size => nn_get_output_size
+        procedure, public, pass :: get_num_parameters => nn_get_num_parameters
+        procedure, public, pass :: set_parameters => nn_set_parameters
+        procedure, public, pass :: get_parameters => nn_get_parameters
+        procedure, public, pass :: apply_forward => nn_apply_forward
+        procedure, public, pass :: apply_tangent_linear => nn_apply_tangent_linear
+        procedure, public, pass :: apply_adjoint => nn_apply_adjoint
+    end type NeuralNetwork
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type, extends(Layer) :: SequentialLayer
         private
         integer(ik) :: num_layers
-        class(LayerContainer), allocatable :: list_layers(:)
+        type(LayerContainer), allocatable :: list_layers(:)
         integer(ik), allocatable :: ip_start(:)
         integer(ik), allocatable :: ip_end(:)
     contains
@@ -141,33 +141,33 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) function nn_get_input_size(self) result(input_size)
         class(NeuralNetwork), intent(in) :: self
-        input_size = self % layer % input_size
+        input_size = self % layer_container % this_layer % input_size
     end function nn_get_input_size
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) function nn_get_output_size(self) result(output_size)
         class(NeuralNetwork), intent(in) :: self
-        output_size = self % layer % output_size
+        output_size = self % layer_container % this_layer % output_size
     end function nn_get_output_size
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) function nn_get_num_parameters(self) result(num_parameters)
         class(NeuralNetwork), intent(in) :: self
-        num_parameters = self % layer % num_parameters
+        num_parameters = self % layer_container % this_layer % num_parameters
     end function nn_get_num_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine nn_set_parameters(self, new_parameters)
         class(NeuralNetwork), intent(inout) :: self
         real(rk), intent(in) :: new_parameters(:)
-        call self % layer % set_parameters(new_parameters)
+        call self % layer_container % this_layer % set_parameters(new_parameters)
     end subroutine nn_set_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine nn_get_parameters(self, parameters)
         class(NeuralNetwork), intent(in) :: self
         real(rk), intent(out) :: parameters(:)
-        call self % layer % get_parameters(parameters)
+        call self % layer_container % this_layer % get_parameters(parameters)
     end subroutine nn_get_parameters
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -177,7 +177,7 @@ contains
         integer(ik), intent(in) :: member
         real(rk), intent(in) :: x(:)
         real(rk), intent(out) :: y(:)
-        call self % layer % apply_forward(train, member, x, y)
+        call self % layer_container % this_layer % apply_forward(train, member, x, y)
     end subroutine nn_apply_forward
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -187,7 +187,7 @@ contains
         real(rk), intent(in) :: dp(:)
         real(rk), intent(in) :: dx(:)
         real(rk), intent(out) :: dy(:)
-        call self % layer % apply_tangent_linear(member, dp, dx, dy)
+        call self % layer_container % this_layer % apply_tangent_linear(member, dp, dx, dy)
     end subroutine nn_apply_tangent_linear
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -197,7 +197,7 @@ contains
         real(rk), intent(inout) :: dy(:)
         real(rk), intent(out) :: dp(:)
         real(rk), intent(out) :: dx(:)
-        call self % layer % apply_adjoint(member, dy, dp, dx)
+        call self % layer_container % this_layer % apply_adjoint(member, dy, dp, dx)
     end subroutine nn_apply_adjoint
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -534,33 +534,40 @@ contains
         character(len=*), intent(in) :: filename_txt
         character(len=*), intent(in) :: filename_bin
         integer(ik) :: fileunit
-        character(len=100) :: layer_name
         ! read architecture
         open(newunit=fileunit, file=filename_txt, action='read')
-        read(fileunit, fmt=*) layer_name
-        select case(trim(layer_name)) ! loop over all layers here
-            case('linear')
-                allocate(LinearLayer::self % layer)
-                self % layer = linear_layer_fromfile(batch_size, fileunit)
-            case('normalisation')
-                allocate(NormalisationLayer::self % layer)
-                self % layer = normalisation_layer_fromfile(batch_size, fileunit)
-            case('relu_activation')
-                allocate(ReluActivationLayer::self % layer)
-                self % layer = relu_activation_layer_fromfile(batch_size, fileunit)
-            case('tanh_activation')
-                allocate(TanhActivationLayer::self % layer)
-                self % layer = tanh_activation_layer_fromfile(batch_size, fileunit)
-            case default
-                allocate(SequentialLayer::self % layer)
-                self % layer = sequential_layer_fromfile(batch_size, fileunit)
-        end select
+        self % layer_container = layer_container_fromfile(batch_size, fileunit)
         close(fileunit)
         ! read parameters
         open(newunit=fileunit, file=filename_bin, form='unformatted', access='stream', action='read')
-        call self % layer % read_parameters(fileunit)
+        call self % layer_container % this_layer % read_parameters(fileunit)
         close(fileunit)
     end function nn_fromfile
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type(LayerContainer) function layer_container_fromfile(batch_size, fileunit) result (self)
+        integer(ik), intent(in) :: batch_size
+        integer(ik), intent(in) :: fileunit
+        character(len=100) :: layer_name
+        read(fileunit, fmt=*) layer_name
+        select case(trim(layer_name)) ! loop over all layers here
+            case('linear')
+                allocate(LinearLayer::self % this_layer)
+                self % this_layer = linear_layer_fromfile(batch_size, fileunit)
+            case('normalisation')
+                allocate(NormalisationLayer::self % this_layer)
+                self % this_layer = normalisation_layer_fromfile(batch_size, fileunit)
+            case('relu_activation')
+                allocate(ReluActivationLayer::self % this_layer)
+                self % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
+            case('tanh_activation')
+                allocate(TanhActivationLayer::self % this_layer)
+                self % this_layer = tanh_activation_layer_fromfile(batch_size, fileunit)
+            case default
+                allocate(SequentialLayer::self % this_layer)
+                self % this_layer = sequential_layer_fromfile(batch_size, fileunit)
+        end select
+    end function layer_container_fromfile
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     type(Layer) function construct_layer(input_size, output_size, batch_size, num_parameters, frozen) result (self)
@@ -587,7 +594,7 @@ contains
     end function construct_layer
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    type(SequentialLayer) recursive function sequential_layer_fromfile(batch_size, fileunit) result (self)
+    type(SequentialLayer) function sequential_layer_fromfile(batch_size, fileunit) result (self)
         integer(ik), intent(in) :: batch_size
         integer(ik), intent(in) :: fileunit
         character(len=100) :: layer_name
@@ -599,24 +606,7 @@ contains
         allocate(self % ip_end(self % num_layers))
         ip = 0
         do i = 1, self % num_layers
-            read(fileunit, *) layer_name
-            select case(trim(layer_name)) ! loop over all layers here
-                case('linear')
-                    allocate(LinearLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = linear_layer_fromfile(batch_size, fileunit)
-                case('normalisation')
-                    allocate(NormalisationLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = normalisation_layer_fromfile(batch_size, fileunit)
-                case('relu_activation')
-                    allocate(ReluActivationLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = relu_activation_layer_fromfile(batch_size, fileunit)
-                case('tanh_activation')
-                    allocate(TanhActivationLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = tanh_activation_layer_fromfile(batch_size, fileunit)
-                case default
-                    allocate(SequentialLayer::self % list_layers(i) % this_layer)
-                    self % list_layers(i) % this_layer = sequential_layer_fromfile(batch_size, fileunit)
-            end select
+            self % list_layers(i) = layer_container_fromfile(batch_size, fileunit)
             self % ip_start(i) = ip + 1
             ip = ip + self % list_layers(i) % this_layer % num_parameters
             self % ip_end(i) = ip
