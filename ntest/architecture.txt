@@ -1,0 +1,101 @@
+sequential
+8
+  - linear (dense)
+    not_frozen
+    17
+    80
+  - relu_activation (activation)
+    80
+  - skip_connection (concatenate_6)
+    sequential
+    13
+      - append_static_input (concatenate)
+        frozen
+        80
+        8
+      - linear (dense_1)
+        not_frozen
+        88
+        64
+      - relu_activation (activation_1)
+        64
+      - linear (dense_2)
+        64
+        32
+      - relu_activation (activation_2)
+        32
+      - skip_connection (concatenate_4)
+        sequential
+        7
+          - append_static_input (concatenate_1)
+            frozen
+            32
+            8
+          - linear (dense_3)
+            not_frozen
+            40
+            16
+          - relu_activation (activation_3)
+            16
+          - skip_connection (concatenate_3)
+            sequential
+            4
+              - append_static_input (concatenate_2)
+                frozen
+                16
+                8
+              - linear (dense_4)
+                not_frozen
+                24
+                8
+              - normalisation (batch_normalisation)
+                frozen
+                8
+              - relu_activation (activation_4)
+                8
+          - linear (dense_5)
+            not_frozen
+            24
+            16
+          - normalisation (batch_normalisation_1)
+            frozen
+            16
+          - relu_activation (activation_5)
+            16
+      - linear (dense_6)
+        not_frozen
+        48
+        32
+      - normalisation (batch_normalisation_2)
+        frozen
+        32
+      - relu_activation (activation_6)
+        32
+      - append_static_input (concatenate_5)
+        frozen
+        32
+        8
+      - linear (dense_7)
+        not_frozen
+        40
+        64
+      - normalisation (batch_normalisation_3)
+        frozen
+        64
+      - relu_activation (activation_7)
+        64
+  - linear (dense_8)
+    not_frozen
+    144
+    80
+  - normalisation (batch_normalisation_4)
+    frozen
+    80
+  - relu_activation (activation_8)
+    80
+  - linear (dense_9)
+    not_frozen
+    80
+    1
+  - tanh_activation (activation_9)
+    1

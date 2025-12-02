@@ -1,0 +1,10 @@
+env = Environment(
+    F90='/opt/homebrew/bin/gfortran',
+    LINK='/opt/homebrew/bin/gfortran',
+)
+src = [
+    'fnn.f90', 
+]
+
+env.Program('test.x', ['test.f90']+src)
+
